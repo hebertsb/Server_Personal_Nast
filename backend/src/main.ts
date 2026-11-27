@@ -1,6 +1,7 @@
 import { GestionarAccesosProyecto } from './aplicacion/accesos/GestionarAccesosProyecto';
 import { GestionarAutomatizaciones } from './aplicacion/automatizaciones/GestionarAutomatizaciones';
 import { Gestionar2FA } from './aplicacion/autenticacion/Gestionar2FA';
+import { GestionarAccesoYUsuarios } from './aplicacion/autenticacion/GestionarAccesoYUsuarios';
 import { IniciarSesion } from './aplicacion/autenticacion/IniciarSesion';
 import { RenovarSesion } from './aplicacion/autenticacion/RenovarSesion';
 import { ValidarSegundoFactor } from './aplicacion/autenticacion/ValidarSegundoFactor';
@@ -63,6 +64,7 @@ import { HealthController } from './presentacion/controladores/HealthController'
 import { IaMcpController } from './presentacion/controladores/IaMcpController';
 import { RecursosController } from './presentacion/controladores/RecursosController';
 import { SeguridadController } from './presentacion/controladores/SeguridadController';
+import { UsuariosController } from './presentacion/controladores/UsuariosController';
 import { crearMiddlewareAutenticacion } from './presentacion/middlewares/autenticacion.middleware';
 import {
   crearLimitadorApiGeneral,
@@ -146,6 +148,15 @@ async function iniciarServidor(): Promise<void> {
     servicioCifrado,
     servicioTotp,
     servicioHash,
+  );
+  const casoUsoAccesoYUsuarios = new GestionarAccesoYUsuarios(
+    repositorioUsuarios,
+    repositorioSeguridad2FA,
+    repositorioAuditoria,
+    servicioHash,
+    servicioCifrado,
+    servicioTotp,
+    servicioTokens,
   );
 
   const casoUsoListarContenedores = new ListarContenedores(
@@ -238,7 +249,9 @@ async function iniciarServidor(): Promise<void> {
     casoUsoGestionar2FA,
     esProduccion,
     config.DIAS_DISPOSITIVO_CONFIABLE,
+    casoUsoAccesoYUsuarios,
   );
+  const usuariosController = new UsuariosController(casoUsoAccesoYUsuarios);
   const contenedoresController = new ContenedoresController(
     casoUsoListarContenedores,
     casoUsoControlarContenedor,
@@ -283,7 +296,7 @@ async function iniciarServidor(): Promise<void> {
     verificarPostgres: () => verificarConexionPostgres(pool),
     verificarDocker: () => colectorDocker.verificarConexion(),
   });
-  const middlewareAutenticacion = crearMiddlewareAutenticacion(servicioTokens);
+  const middlewareAutenticacion = crearMiddlewareAutenticacion(servicioTokens, repositorioUsuarios);
 
   const registrarEvento = (
     evento: Parameters<typeof repositorioSeguridad2FA.registrarEventoSeguridad>[0],
@@ -308,6 +321,7 @@ async function iniciarServidor(): Promise<void> {
     logger,
     rutas: {
       authController,
+      usuariosController,
       contenedoresController,
       recursosController,
       seguridadController,

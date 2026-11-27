@@ -11,8 +11,8 @@ export interface ResultadoRenovarSesion {
 }
 
 /**
- * Caso de uso: valida el refresh token, verifica que el usuario siga existiendo
- * y rota el par de tokens (acceso + refresh).
+ * Caso de uso: valida el refresh token, verifica que el usuario siga existiendo,
+ * activo y con versión de sesión vigente, y rota el par de tokens (acceso + refresh).
  */
 export class RenovarSesion {
   constructor(
@@ -24,14 +24,23 @@ export class RenovarSesion {
     const payload = this.servicioTokens.verificarTokenRefresh(tokenRefresh);
     const usuario = await this.repositorioUsuarios.buscarPorId(payload.sub);
 
-    if (!usuario) {
+    if (!usuario || !usuario.activo) {
       throw new ErrorTokenInvalido('La sesión ya no es válida');
+    }
+
+    if (
+      payload.versionSesion !== undefined &&
+      payload.versionSesion !== usuario.versionSesion
+    ) {
+      throw new ErrorTokenInvalido('La sesión fue revocada. Vuelve a iniciar sesión.');
     }
 
     const tokens = this.servicioTokens.generarParTokens({
       id: usuario.id,
       nombreUsuario: usuario.nombreUsuario,
       rol: usuario.rol,
+      permisosModulos: usuario.permisosModulos,
+      versionSesion: usuario.versionSesion,
     });
 
     return {

@@ -1,6 +1,16 @@
 import { apiCliente } from './apiCliente';
 
-export type RolUsuario = 'administrador' | 'solo_lectura';
+export type RolUsuario = 'superadmin' | 'administrador' | 'colaborador' | 'solo_lectura';
+
+export type ModuloSistema =
+  | 'recursos'
+  | 'servicios'
+  | 'red'
+  | 'seguridad'
+  | 'automatizacion'
+  | 'configuracion'
+  | 'usuarios'
+  | 'ia';
 
 export type MotivoSegundoFactor =
   | 'no_habilitado'
@@ -14,6 +24,10 @@ export interface UsuarioAutenticado {
   rol: RolUsuario;
   totpHabilitado: boolean;
   creadoEn: string;
+  activo?: boolean;
+  permisosModulos?: ModuloSistema[];
+  ultimoAccesoEn?: string | null;
+  ultimaIpAcceso?: string | null;
 }
 
 export interface CredencialesLogin {
@@ -61,6 +75,26 @@ export interface ConfiguracionInicial2FA {
 }
 
 export const autenticacionServicio = {
+  estadoInicial: (): Promise<{ requiereSetup: boolean }> =>
+    apiCliente.get<{ requiereSetup: boolean }>('/auth/estado-inicial'),
+
+  setupInicial: (datos: CredencialesLogin): Promise<RespuestaSesionActiva> =>
+    apiCliente.post<RespuestaSesionActiva>('/auth/setup-inicial', datos),
+
+  registrarConInvitacion: (datos: {
+    tokenInvitacion: string;
+    nombreUsuario: string;
+    contrasena: string;
+  }): Promise<RespuestaSesionActiva> =>
+    apiCliente.post<RespuestaSesionActiva>('/auth/registrar-con-invitacion', datos),
+
+  recuperarConTotp: (datos: {
+    nombreUsuario: string;
+    codigo: string;
+    nuevaContrasena: string;
+  }): Promise<{ mensaje: string }> =>
+    apiCliente.post<{ mensaje: string }>('/auth/recuperar-totp', datos),
+
   login: (credenciales: CredencialesLogin): Promise<RespuestaLogin> =>
     apiCliente.post<RespuestaLogin>('/auth/login', credenciales),
 

@@ -40,12 +40,26 @@ import {
   esquemaConfirmar2FA,
   esquemaDesactivar2FA,
   esquemaLogin,
+  esquemaRecuperarTotp,
+  esquemaRegistroInvitacion,
+  esquemaSetupInicial,
   esquemaVerificar2FA,
 } from './dto/LoginDTO';
+import {
+  esquemaActualizarPermisos,
+  esquemaCambiarEstadoUsuario,
+  esquemaCrearInvitacion,
+  UsuariosController,
+} from './controladores/UsuariosController';
+import {
+  requerirModulo,
+  requerirSuperadmin,
+} from './middlewares/autenticacion.middleware';
 import { validarCuerpo } from './middlewares/validacion.middleware';
 
 export interface DependenciasRutas {
   authController: AuthController;
+  usuariosController?: UsuariosController;
   contenedoresController: ContenedoresController;
   recursosController: RecursosController;
   seguridadController: SeguridadController;
@@ -68,7 +82,26 @@ export function crearRutas(deps: DependenciasRutas): Router {
   const routerApiV1 = Router();
   routerApiV1.use(deps.limitadorApiGeneral);
 
-  // Autenticación y 2FA (rate limit estricto en login y verificación 2FA)
+  // Autenticación, Setup inicial, Registro por invitación, Recuperación 2FA y TOTP
+  routerApiV1.get('/auth/estado-inicial', deps.authController.obtenerEstadoInicial);
+  routerApiV1.post(
+    '/auth/setup-inicial',
+    deps.limitadorLogin,
+    validarCuerpo(esquemaSetupInicial),
+    deps.authController.setupInicial,
+  );
+  routerApiV1.post(
+    '/auth/registrar-con-invitacion',
+    deps.limitadorLogin,
+    validarCuerpo(esquemaRegistroInvitacion),
+    deps.authController.registrarConInvitacion,
+  );
+  routerApiV1.post(
+    '/auth/recuperar-totp',
+    deps.limitadorLogin,
+    validarCuerpo(esquemaRecuperarTotp),
+    deps.authController.recuperarConTotp,
+  );
   routerApiV1.post(
     '/auth/login',
     deps.limitadorLogin,
@@ -152,6 +185,7 @@ export function crearRutas(deps: DependenciasRutas): Router {
   );
 
   // Módulo de seguridad, SSH, bloqueo de IPs, notificaciones y Pi-hole (Fase 0.7 + Fase 1)
+  routerApiV1.use('/seguridad', deps.middlewareAutenticacion, requerirModulo('seguridad'));
   routerApiV1.get(
     '/seguridad/eventos',
     deps.middlewareAutenticacion,
@@ -341,6 +375,7 @@ export function crearRutas(deps: DependenciasRutas): Router {
   );
 
   // Fase 4: Automatización de servicios y reglas condición-acción (RF-51 a RF-53)
+  routerApiV1.use('/automatizaciones', deps.middlewareAutenticacion, requerirModulo('automatizacion'));
   routerApiV1.get(
     '/automatizaciones',
     deps.middlewareAutenticacion,
@@ -431,6 +466,55 @@ export function crearRutas(deps: DependenciasRutas): Router {
     deps.iaMcpController.revocarTokenMcp,
   );
   routerApiV1.post('/mcp', deps.iaMcpController.manejarJsonRpcMcp);
+
+  // Gestión de usuarios, permisos e invitaciones temporales (exclusivo Superadmin)
+  if (deps.usuariosController) {
+    routerApiV1.get(
+      '/usuarios',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      deps.usuariosController.listarUsuarios,
+    );
+    routerApiV1.put(
+      '/usuarios/:id/permisos',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaActualizarPermisos),
+      deps.usuariosController.actualizarPermisos,
+    );
+    routerApiV1.patch(
+      '/usuarios/:id/estado',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaCambiarEstadoUsuario),
+      deps.usuariosController.cambiarEstado,
+    );
+    routerApiV1.post(
+      '/usuarios/:id/revocar-sesiones',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      deps.usuariosController.revocarSesiones,
+    );
+    routerApiV1.get(
+      '/usuarios/invitaciones',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      deps.usuariosController.listarInvitaciones,
+    );
+    routerApiV1.post(
+      '/usuarios/invitaciones',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaCrearInvitacion),
+      deps.usuariosController.crearInvitacion,
+    );
+    routerApiV1.delete(
+      '/usuarios/invitaciones/:id',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      deps.usuariosController.revocarInvitacion,
+    );
+  }
 
   router.use('/api/v1', routerApiV1);
 

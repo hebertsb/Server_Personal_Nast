@@ -1,5 +1,20 @@
 import { z } from 'zod';
 
+const esquemaNombreUsuarioNuevo = z
+  .string({ error: 'El nombre de usuario es obligatorio' })
+  .trim()
+  .min(3, 'El usuario debe tener al menos 3 caracteres')
+  .max(60, 'El usuario no puede superar 60 caracteres')
+  .regex(
+    /^[a-zA-Z0-9._-]+$/,
+    'El usuario solo puede contener letras, números, puntos, guiones y guion bajo',
+  );
+
+const esquemaContrasenaFuerte = z
+  .string({ error: 'La contraseña es obligatoria' })
+  .min(8, 'La contraseña debe tener al menos 8 caracteres')
+  .max(200, 'La contraseña excede la longitud permitida');
+
 export const esquemaLogin = z.object({
   nombreUsuario: z
     .string({ error: 'El nombre de usuario es obligatorio' })
@@ -10,6 +25,35 @@ export const esquemaLogin = z.object({
     .string({ error: 'La contraseña es obligatoria' })
     .min(1, 'La contraseña es obligatoria')
     .max(200, 'La contraseña excede la longitud permitida'),
+});
+
+export const esquemaSetupInicial = z.object({
+  nombreUsuario: esquemaNombreUsuarioNuevo,
+  contrasena: esquemaContrasenaFuerte,
+});
+
+export const esquemaRegistroInvitacion = z.object({
+  tokenInvitacion: z
+    .string({ error: 'El token de invitación es obligatorio' })
+    .trim()
+    .min(10, 'Token de invitación inválido')
+    .max(120, 'Token de invitación demasiado largo'),
+  nombreUsuario: esquemaNombreUsuarioNuevo,
+  contrasena: esquemaContrasenaFuerte,
+});
+
+export const esquemaRecuperarTotp = z.object({
+  nombreUsuario: z
+    .string({ error: 'El nombre de usuario es obligatorio' })
+    .trim()
+    .min(1, 'El nombre de usuario es obligatorio')
+    .max(100),
+  codigo: z
+    .string({ error: 'El código 2FA es obligatorio' })
+    .trim()
+    .min(6, 'El código 2FA debe tener al menos 6 caracteres')
+    .max(16, 'Código demasiado largo'),
+  nuevaContrasena: esquemaContrasenaFuerte,
 });
 
 export const esquemaVerificar2FA = z.object({
@@ -45,10 +89,13 @@ export const esquemaDesactivar2FA = z
   );
 
 export const esquemaParametroUuid = z.object({
-  id: z.string().uuid('Identificador de dispositivo inválido'),
+  id: z.string().uuid('Identificador inválido'),
 });
 
 export type LoginDTO = z.infer<typeof esquemaLogin>;
+export type SetupInicialDTO = z.infer<typeof esquemaSetupInicial>;
+export type RegistroInvitacionDTO = z.infer<typeof esquemaRegistroInvitacion>;
+export type RecuperarTotpDTO = z.infer<typeof esquemaRecuperarTotp>;
 export type Verificar2FADTO = z.infer<typeof esquemaVerificar2FA>;
 export type Confirmar2FADTO = z.infer<typeof esquemaConfirmar2FA>;
 export type Desactivar2FADTO = z.infer<typeof esquemaDesactivar2FA>;

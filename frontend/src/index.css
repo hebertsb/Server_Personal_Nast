@@ -438,3 +438,84 @@ html[data-tema="oscuro"] .bg-canvas-base {
   background: var(--hs-border-strong);
   border-radius: 9999px;
 }
+
+/* ==========================================================================
+   Compuerta electrónica animada (Portal de acceso HomeSOC)
+   ========================================================================== */
+@keyframes hs-scanline {
+  0% {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.95;
+  }
+  80% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(520%);
+    opacity: 0;
+  }
+}
+
+@keyframes hs-progress-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+@keyframes hs-float-slow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes hs-door-seam-glow {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.hs-scanline {
+  animation: hs-scanline 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.hs-progress-sweep {
+  animation: hs-progress-sweep 1.15s ease-in-out infinite;
+}
+
+.hs-float-slow {
+  animation: hs-float-slow 5.5s ease-in-out infinite;
+}
+
+.hs-door-panel {
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--hs-accent) 7%, transparent) 0px,
+      color-mix(in srgb, var(--hs-accent) 7%, transparent) 8px,
+      transparent 8px,
+      transparent 16px
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--hs-surface-highest) 96%, black) 0%,
+      color-mix(in srgb, var(--hs-surface-dim) 98%, black) 100%
+    );
+}
+
+.hs-door-seam {
+  animation: hs-door-seam-glow 0.7s ease-in-out infinite;
+}

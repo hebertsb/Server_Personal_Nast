@@ -33,3 +33,35 @@ export class Error2FANoConfigurado extends ErrorDominio {
     super('DOS_FACTORES_NO_CONFIGURADO', mensaje, 400);
   }
 }
+
+export class ErrorUsuarioSuspendido extends ErrorDominio {
+  constructor(mensaje = 'Tu cuenta se encuentra suspendida. Contacta al Superadmin.') {
+    super('USUARIO_SUSPENDIDO', mensaje, 403);
+  }
+}
+
+export class ErrorPermisoDenegado extends ErrorDominio {
+  constructor(mensaje = 'No tienes permisos suficientes para acceder a este recurso') {
+    super('PERMISO_DENEGADO', mensaje, 403);
+  }
+}
+
+export class ErrorSetupNoDisponible extends ErrorDominio {
+  constructor(
+    mensaje = 'La configuración inicial ya fue completada. Usa el inicio de sesión o un token de invitación.',
+  ) {
+    super('SETUP_NO_DISPONIBLE', mensaje, 403);
+  }
+}
+
+export class ErrorInvitacionInvalida extends ErrorDominio {
+  constructor(mensaje = 'El token de invitación es inválido, ya fue utilizado o ha expirado') {
+    super('INVITACION_INVALIDA', mensaje, 400);
+  }
+}
+
+export class ErrorUsuarioYaExiste extends ErrorDominio {
+  constructor(mensaje = 'Ese nombre de usuario ya está registrado') {
+    super('USUARIO_YA_EXISTE', mensaje, 409);
+  }
+}

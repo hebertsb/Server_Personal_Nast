@@ -3,6 +3,7 @@ import { PerfilUsuarioPublico } from '../../dominio/entidades/Usuario';
 import {
   ErrorCodigo2FAInvalido,
   ErrorTokenInvalido,
+  ErrorUsuarioSuspendido,
 } from '../../dominio/errores/ErroresAutenticacion';
 import { RepositorioSeguridad2FA } from '../../dominio/interfaces/RepositorioSeguridad2FA';
 import { RepositorioUsuarios } from '../../dominio/interfaces/RepositorioUsuarios';
@@ -56,6 +57,10 @@ export class ValidarSegundoFactor {
 
     if (!usuario || !usuario.totpHabilitado || !usuario.secretoTotp) {
       throw new ErrorTokenInvalido('Sesión 2FA inválida');
+    }
+
+    if (!usuario.activo) {
+      throw new ErrorUsuarioSuspendido();
     }
 
     const codigoLimpio = entrada.codigo.trim().toUpperCase();
@@ -118,6 +123,9 @@ export class ValidarSegundoFactor {
       direccionIp: entrada.direccionIp,
       exitoso: true,
     });
+    if (this.repositorioUsuarios.actualizarAcceso) {
+      await this.repositorioUsuarios.actualizarAcceso(usuario.id, entrada.direccionIp);
+    }
 
     let tokenDispositivoConfiable: string | undefined;
     if (entrada.recordarDispositivo) {
@@ -139,6 +147,8 @@ export class ValidarSegundoFactor {
       id: usuario.id,
       nombreUsuario: usuario.nombreUsuario,
       rol: usuario.rol,
+      permisosModulos: usuario.permisosModulos,
+      versionSesion: usuario.versionSesion,
     });
 
     return {

@@ -1,16 +1,20 @@
-import { RolUsuario } from '../entidades/Usuario';
+import { ModuloSistema, RolUsuario } from '../entidades/Usuario';
 import { MotivoSegundoFactor } from '../reglas/EvaluadorConfianzaOrigen';
 
 export interface DatosTokenUsuario {
   id: string;
   nombreUsuario: string;
   rol: RolUsuario;
+  permisosModulos?: ModuloSistema[];
+  versionSesion?: number;
 }
 
 export interface PayloadTokenAcceso {
   sub: string;
   nombreUsuario: string;
   rol: RolUsuario;
+  permisosModulos?: ModuloSistema[];
+  versionSesion?: number;
   tipo: 'acceso';
 }
 
@@ -18,6 +22,7 @@ export interface PayloadTokenRefresh {
   sub: string;
   nombreUsuario: string;
   rol: RolUsuario;
+  versionSesion?: number;
   tipo: 'refresh';
 }
 

@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { NextFunction, Request, Response } from 'express';
 import { Gestionar2FA } from '../../aplicacion/autenticacion/Gestionar2FA';
+import { GestionarAccesoYUsuarios } from '../../aplicacion/autenticacion/GestionarAccesoYUsuarios';
 import { IniciarSesion } from '../../aplicacion/autenticacion/IniciarSesion';
 import { RenovarSesion } from '../../aplicacion/autenticacion/RenovarSesion';
 import { ValidarSegundoFactor } from '../../aplicacion/autenticacion/ValidarSegundoFactor';
@@ -10,6 +11,9 @@ import {
   Desactivar2FADTO,
   esquemaParametroUuid,
   LoginDTO,
+  RecuperarTotpDTO,
+  RegistroInvitacionDTO,
+  SetupInicialDTO,
   Verificar2FADTO,
 } from '../dto/LoginDTO';
 
@@ -45,6 +49,7 @@ export class AuthController {
     private readonly casoUsoGestionar2FA: Gestionar2FA,
     private readonly esProduccion: boolean,
     private readonly diasDispositivoConfiable = 30,
+    private readonly casoUsoAccesoYUsuarios?: GestionarAccesoYUsuarios,
   ) {}
 
   private obtenerOpcionesCookie() {
@@ -55,6 +60,116 @@ export class AuthController {
       path: '/api/v1/auth',
     };
   }
+
+  public obtenerEstadoInicial = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!this.casoUsoAccesoYUsuarios) {
+        res.status(200).json({ requiereSetup: false });
+        return;
+      }
+      const estado = await this.casoUsoAccesoYUsuarios.obtenerEstadoInicial();
+      res.status(200).json(estado);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public setupInicial = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!this.casoUsoAccesoYUsuarios) {
+        res.status(501).json({ error: { codigo: 'NO_DISPONIBLE', mensaje: 'Setup no disponible' } });
+        return;
+      }
+      const { nombreUsuario, contrasena } = req.body as SetupInicialDTO;
+      const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
+      const resultado = await this.casoUsoAccesoYUsuarios.ejecutarSetupInicial({
+        nombreUsuario,
+        contrasena,
+        direccionIp,
+      });
+
+      res.cookie(NOMBRE_COOKIE_REFRESH, resultado.tokenRefresh, {
+        ...this.obtenerOpcionesCookie(),
+        maxAge: SIETE_DIAS_MS,
+      });
+
+      res.status(201).json({
+        requiere2FA: false,
+        usuario: resultado.usuario,
+        tokenAcceso: resultado.tokenAcceso,
+        expiraEn: resultado.expiraEn,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public registrarConInvitacion = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!this.casoUsoAccesoYUsuarios) {
+        res.status(501).json({ error: { codigo: 'NO_DISPONIBLE', mensaje: 'Registro no disponible' } });
+        return;
+      }
+      const { tokenInvitacion, nombreUsuario, contrasena } = req.body as RegistroInvitacionDTO;
+      const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
+      const resultado = await this.casoUsoAccesoYUsuarios.registrarConInvitacion({
+        tokenInvitacion,
+        nombreUsuario,
+        contrasena,
+        direccionIp,
+      });
+
+      res.cookie(NOMBRE_COOKIE_REFRESH, resultado.tokenRefresh, {
+        ...this.obtenerOpcionesCookie(),
+        maxAge: SIETE_DIAS_MS,
+      });
+
+      res.status(201).json({
+        requiere2FA: false,
+        usuario: resultado.usuario,
+        tokenAcceso: resultado.tokenAcceso,
+        expiraEn: resultado.expiraEn,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public recuperarConTotp = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!this.casoUsoAccesoYUsuarios) {
+        res.status(501).json({ error: { codigo: 'NO_DISPONIBLE', mensaje: 'Recuperación no disponible' } });
+        return;
+      }
+      const { nombreUsuario, codigo, nuevaContrasena } = req.body as RecuperarTotpDTO;
+      const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
+      const resultado = await this.casoUsoAccesoYUsuarios.recuperarContrasenaConTotp({
+        nombreUsuario,
+        codigo,
+        nuevaContrasena,
+        direccionIp,
+      });
+      res.status(200).json(resultado);
+    } catch (error) {
+      next(error);
+    }
+  };
 
   public iniciarSesion = async (
     req: Request,

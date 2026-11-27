@@ -69,12 +69,14 @@ describe('Caso de uso IniciarSesion (HU-01)', () => {
       direccionIp: '127.0.0.1',
       exitoso: true,
     });
-    expect(servicioTokens.generarParTokens).toHaveBeenCalledWith({
-      id: usuario.id,
-      nombreUsuario: 'admin',
-      rol: 'administrador',
-    });
-    expect(resultado).toEqual({
+    expect(servicioTokens.generarParTokens).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: usuario.id,
+        nombreUsuario: 'admin',
+        rol: 'administrador',
+      }),
+    );
+    expect(resultado).toMatchObject({
       requiere2FA: false,
       usuario: {
         id: usuario.id,
@@ -82,6 +84,7 @@ describe('Caso de uso IniciarSesion (HU-01)', () => {
         rol: 'administrador',
         totpHabilitado: false,
         creadoEn: usuario.creadoEn,
+        activo: true,
       },
       tokenAcceso: 'jwt-acceso-prueba',
       tokenRefresh: 'jwt-refresh-prueba',

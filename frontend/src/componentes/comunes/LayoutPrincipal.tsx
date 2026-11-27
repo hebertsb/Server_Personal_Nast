@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { usarAutenticacion } from '../../contexto/ContextoAutenticacion';
 import { PALETAS_ACENTO, usarTema } from '../../contexto/ContextoTema';
 import { apiCliente } from '../../servicios/apiCliente';
+import { ModuloSistema } from '../../servicios/autenticacionServicio';
 import { contenedoresServicio } from '../../servicios/contenedoresServicio';
 import { AlertaEnviadaItem, seguridadServicio } from '../../servicios/seguridadServicio';
 import AsistenteVozDrawer from '../ia/AsistenteVozDrawer';
@@ -10,6 +11,7 @@ import SelectorTema from './SelectorTema';
 
 interface ItemMenu {
   ruta: string;
+  modulo: ModuloSistema;
   icono: string;
   texto: string;
   descripcion: string;
@@ -32,6 +34,7 @@ interface TooltipFlotante {
 const ITEMS_MENU: ItemMenu[] = [
   {
     ruta: '/',
+    modulo: 'recursos',
     icono: 'monitoring',
     texto: 'Recursos del Servidor',
     descripcion: 'CPU, RAM, discos y sensores en vivo',
@@ -39,6 +42,7 @@ const ITEMS_MENU: ItemMenu[] = [
   },
   {
     ruta: '/servicios',
+    modulo: 'servicios',
     icono: 'deployed_code',
     texto: 'Servicios y Despliegues',
     descripcion: 'Contenedores Docker, GitHub y logs',
@@ -46,6 +50,7 @@ const ITEMS_MENU: ItemMenu[] = [
   },
   {
     ruta: '/red',
+    modulo: 'red',
     icono: 'hub',
     texto: 'Red y Conectividad',
     descripcion: 'Pi-hole, Tailscale y túneles activos',
@@ -53,6 +58,7 @@ const ITEMS_MENU: ItemMenu[] = [
   },
   {
     ruta: '/seguridad',
+    modulo: 'seguridad',
     icono: 'shield',
     texto: 'Seguridad y Auditoría',
     descripcion: 'SSH, fuerza bruta, 2FA y auditoría',
@@ -60,16 +66,26 @@ const ITEMS_MENU: ItemMenu[] = [
   },
   {
     ruta: '/automatizacion',
+    modulo: 'automatizacion',
     icono: 'bolt',
     texto: 'Automatización',
     descripcion: 'Horarios y reglas condición-acción',
     grupo: 'Operación',
   },
   {
+    ruta: '/usuarios',
+    modulo: 'usuarios',
+    icono: 'group',
+    texto: 'Usuarios y Accesos',
+    descripcion: 'Roles, invitaciones y permisos por ventana',
+    grupo: 'Sistema',
+  },
+  {
     ruta: '/configuracion',
+    modulo: 'configuracion',
     icono: 'tune',
     texto: 'Configuración General',
-    descripcion: 'Notificaciones, backups y usuarios',
+    descripcion: 'Notificaciones, backups y MCP',
     grupo: 'Sistema',
   },
 ];
@@ -79,7 +95,7 @@ const ORDEN_GRUPOS: Array<ItemMenu['grupo']> = ['Monitoreo', 'Operación', 'Sist
 export default function LayoutPrincipal({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { usuario, tokenAcceso, cerrarSesion } = usarAutenticacion();
+  const { usuario, tokenAcceso, cerrarSesion, tienePermisoModulo } = usarAutenticacion();
   const { acento, esOscuro, alternarTema, establecerAcento } = usarTema();
 
   const [sidebarAbierto, setSidebarAbierto] = useState(true);
@@ -201,7 +217,8 @@ export default function LayoutPrincipal({ children }: { children: ReactNode }) {
   }, []);
 
   const itemsFiltrados = useMemo(() => {
-    const itemsConContadores: ItemMenu[] = ITEMS_MENU.map((item) => {
+    const itemsPermitidos = ITEMS_MENU.filter((item) => tienePermisoModulo(item.modulo));
+    const itemsConContadores: ItemMenu[] = itemsPermitidos.map((item) => {
       if (item.ruta === '/servicios' && contenedoresActivos !== null) {
         return {
           ...item,
@@ -226,7 +243,7 @@ export default function LayoutPrincipal({ children }: { children: ReactNode }) {
         item.descripcion.toLowerCase().includes(consulta) ||
         item.grupo.toLowerCase().includes(consulta),
     );
-  }, [busqueda, contenedoresActivos, alertasRecientes]);
+  }, [busqueda, contenedoresActivos, alertasRecientes, tienePermisoModulo]);
 
   const moduloActual =
     ITEMS_MENU.find((m) => m.ruta === location.pathname)?.texto || 'Panel Principal';

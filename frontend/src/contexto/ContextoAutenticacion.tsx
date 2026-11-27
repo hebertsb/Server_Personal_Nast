@@ -9,6 +9,7 @@ import {
 } from 'react';
 import {
   autenticacionServicio,
+  ModuloSistema,
   RespuestaLogin,
   RespuestaSesionActiva,
   UsuarioAutenticado,
@@ -30,6 +31,8 @@ interface ValorContextoAutenticacion {
     codigo: string;
     recordarDispositivo: boolean;
   }) => Promise<RespuestaSesionActiva>;
+  establecerSesionDirecta: (respuesta: RespuestaSesionActiva) => void;
+  tienePermisoModulo: (modulo: ModuloSistema) => boolean;
   renovarSesion: () => Promise<boolean>;
   cerrarSesion: () => Promise<void>;
   setUsuario: (usuario: UsuarioAutenticado | null) => void;
@@ -137,7 +140,19 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
     [limpiarEstadoLocal],
   );
 
-  // Solo intenta renovar sesión con cookie HttpOnly una única vez al montar la app
+  const tienePermisoModulo = useCallback(
+    (modulo: ModuloSistema): boolean => {
+      if (!usuario) return false;
+      if (usuario.rol === 'superadmin') return true;
+      if (modulo === 'usuarios') return false;
+      if (usuario.permisosModulos && usuario.permisosModulos.length > 0) {
+        return usuario.permisosModulos.includes(modulo);
+      }
+      return usuario.rol === 'administrador';
+    },
+    [usuario],
+  );
+
   useEffect(() => {
     if (inicializadoRef.current) return;
     inicializadoRef.current = true;
@@ -162,6 +177,8 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
         inicializando,
         iniciarSesion,
         completarSegundoFactor,
+        establecerSesionDirecta: guardarSesion,
+        tienePermisoModulo,
         renovarSesion,
         cerrarSesion,
         setUsuario,

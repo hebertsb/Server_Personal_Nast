@@ -1,5 +1,9 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { RolUsuario } from '../../dominio/entidades/Usuario';
+import {
+  ModuloSistema,
+  PERMISOS_POR_DEFECTO_ROL,
+  RolUsuario,
+} from '../../dominio/entidades/Usuario';
 import { ErrorTokenInvalido } from '../../dominio/errores/ErroresAutenticacion';
 import {
   DatosTokenUsuario,
@@ -18,14 +22,26 @@ interface ConfiguracionTokensJwt {
   expiraRefresh: string;
 }
 
+const ROLES_VALIDOS = new Set<string>([
+  'superadmin',
+  'administrador',
+  'colaborador',
+  'solo_lectura',
+]);
+
 export class ServicioTokensJwt implements ServicioTokens {
   constructor(private readonly config: ConfiguracionTokensJwt) {}
 
   public generarParTokens(usuario: DatosTokenUsuario): ParTokens {
+    const permisos = usuario.permisosModulos ?? PERMISOS_POR_DEFECTO_ROL[usuario.rol];
+    const versionSesion = usuario.versionSesion ?? 1;
+
     const payloadAcceso: PayloadTokenAcceso = {
       sub: usuario.id,
       nombreUsuario: usuario.nombreUsuario,
       rol: usuario.rol,
+      permisosModulos: permisos,
+      versionSesion,
       tipo: 'acceso',
     };
 
@@ -33,6 +49,7 @@ export class ServicioTokensJwt implements ServicioTokens {
       sub: usuario.id,
       nombreUsuario: usuario.nombreUsuario,
       rol: usuario.rol,
+      versionSesion,
       tipo: 'refresh',
     };
 
@@ -93,7 +110,8 @@ export class ServicioTokensJwt implements ServicioTokens {
         typeof decodificado.nombreUsuario !== 'string' ||
         typeof decodificado.esRedLocal !== 'boolean' ||
         typeof decodificado.motivo !== 'string' ||
-        (decodificado.rol !== 'administrador' && decodificado.rol !== 'solo_lectura')
+        typeof decodificado.rol !== 'string' ||
+        !ROLES_VALIDOS.has(decodificado.rol)
       ) {
         throw new ErrorTokenInvalido('Desafío 2FA inválido o expirado');
       }
@@ -126,16 +144,37 @@ export class ServicioTokensJwt implements ServicioTokens {
         decodificado.tipo !== tipoEsperado ||
         typeof decodificado.sub !== 'string' ||
         typeof decodificado.nombreUsuario !== 'string' ||
-        (decodificado.rol !== 'administrador' && decodificado.rol !== 'solo_lectura')
+        typeof decodificado.rol !== 'string' ||
+        !ROLES_VALIDOS.has(decodificado.rol)
       ) {
         throw new ErrorTokenInvalido();
+      }
+
+      const rol = decodificado.rol as RolUsuario;
+      const versionSesion =
+        typeof decodificado.versionSesion === 'number' ? decodificado.versionSesion : 1;
+
+      if (tipoEsperado === 'acceso') {
+        const permisosModulos = Array.isArray(decodificado.permisosModulos)
+          ? (decodificado.permisosModulos as ModuloSistema[])
+          : PERMISOS_POR_DEFECTO_ROL[rol];
+
+        return {
+          sub: decodificado.sub,
+          nombreUsuario: decodificado.nombreUsuario,
+          rol,
+          permisosModulos,
+          versionSesion,
+          tipo: 'acceso',
+        };
       }
 
       return {
         sub: decodificado.sub,
         nombreUsuario: decodificado.nombreUsuario,
-        rol: decodificado.rol as RolUsuario,
-        tipo: tipoEsperado,
+        rol,
+        versionSesion,
+        tipo: 'refresh',
       };
     } catch (error) {
       if (error instanceof ErrorTokenInvalido) {

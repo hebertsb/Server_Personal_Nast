@@ -1,5 +1,8 @@
 import { PerfilUsuarioPublico } from '../../dominio/entidades/Usuario';
-import { ErrorCredencialesInvalidas } from '../../dominio/errores/ErroresAutenticacion';
+import {
+  ErrorCredencialesInvalidas,
+  ErrorUsuarioSuspendido,
+} from '../../dominio/errores/ErroresAutenticacion';
 import { RepositorioSeguridad2FA } from '../../dominio/interfaces/RepositorioSeguridad2FA';
 import { RepositorioUsuarios } from '../../dominio/interfaces/RepositorioUsuarios';
 import { ServicioHashContrasena } from '../../dominio/interfaces/ServicioHashContrasena';
@@ -35,8 +38,8 @@ export interface ResultadoPendiente2FA {
 export type ResultadoIniciarSesion = ResultadoSesionCompleta | ResultadoPendiente2FA;
 
 /**
- * Caso de uso HU-01 + Fase 0.5 (RF-04a..d): valida credenciales, registra intento
- * en intentos_inicio_sesion y evalúa si corresponde exigir 2FA condicional
+ * Caso de uso HU-01 + Fase 0.5 (RF-04a..d): valida credenciales, verifica estado activo,
+ * registra intento en intentos_inicio_sesion y evalúa si corresponde exigir 2FA condicional
  * según origen de red (local vs externa) y confianza del dispositivo.
  */
 export class IniciarSesion {
@@ -64,6 +67,15 @@ export class IniciarSesion {
         exitoso: false,
       });
       throw new ErrorCredencialesInvalidas();
+    }
+
+    if (!usuario.activo) {
+      await this.repositorioUsuarios.registrarIntentoInicioSesion({
+        nombreUsuario: usuario.nombreUsuario,
+        direccionIp: entrada.direccionIp,
+        exitoso: false,
+      });
+      throw new ErrorUsuarioSuspendido();
     }
 
     const contrasenaValida = await this.servicioHash.verificar(
@@ -123,11 +135,16 @@ export class IniciarSesion {
       direccionIp: entrada.direccionIp,
       exitoso: true,
     });
+    if (this.repositorioUsuarios.actualizarAcceso) {
+      await this.repositorioUsuarios.actualizarAcceso(usuario.id, entrada.direccionIp);
+    }
 
     const tokens = this.servicioTokens.generarParTokens({
       id: usuario.id,
       nombreUsuario: usuario.nombreUsuario,
       rol: usuario.rol,
+      permisosModulos: usuario.permisosModulos,
+      versionSesion: usuario.versionSesion,
     });
 
     return {

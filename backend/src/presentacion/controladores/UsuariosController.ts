@@ -1,0 +1,184 @@
+import { NextFunction, Request, Response } from 'express';
+import { z } from 'zod';
+import { GestionarAccesoYUsuarios } from '../../aplicacion/autenticacion/GestionarAccesoYUsuarios';
+import { MODULOS_SISTEMA, ModuloSistema } from '../../dominio/entidades/Usuario';
+import { ErrorTokenInvalido } from '../../dominio/errores/ErroresAutenticacion';
+import { esquemaParametroUuid } from '../dto/LoginDTO';
+
+const esquemaModulo = z.enum(MODULOS_SISTEMA as [ModuloSistema, ...ModuloSistema[]]);
+
+export const esquemaCrearInvitacion = z.object({
+  rol: z.enum(['administrador', 'colaborador', 'solo_lectura']),
+  permisosModulos: z.array(esquemaModulo).min(1, 'Debes seleccionar al menos un módulo'),
+  expiraEnHoras: z.number().int().min(1).max(720).default(24),
+  nota: z.string().trim().max(200).optional(),
+});
+
+export const esquemaActualizarPermisos = z.object({
+  rol: z.enum(['superadmin', 'administrador', 'colaborador', 'solo_lectura']),
+  permisosModulos: z.array(esquemaModulo).min(1, 'Debes seleccionar al menos un módulo'),
+});
+
+export const esquemaCambiarEstadoUsuario = z.object({
+  activo: z.boolean(),
+});
+
+/** Controlador HTTP para la gestión de usuarios, roles, permisos e invitaciones (Superadmin). */
+export class UsuariosController {
+  constructor(private readonly casoUso: GestionarAccesoYUsuarios) {}
+
+  public listarUsuarios = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const usuarios = await this.casoUso.listarUsuarios();
+      res.status(200).json({ usuarios });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public listarInvitaciones = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const invitaciones = await this.casoUso.listarInvitaciones();
+      res.status(200).json({ invitaciones });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public crearInvitacion = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const actorId = req.usuarioAutenticado?.sub;
+      if (!actorId) throw new ErrorTokenInvalido();
+      const datos = req.body as z.infer<typeof esquemaCrearInvitacion>;
+      const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
+
+      const resultado = await this.casoUso.crearInvitacion({
+        rol: datos.rol,
+        permisosModulos: datos.permisosModulos,
+        expiraEnHoras: datos.expiraEnHoras,
+        nota: datos.nota ?? null,
+        creadoPorId: actorId,
+        direccionIp,
+      });
+
+      res.status(201).json(resultado);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public revocarInvitacion = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const actorId = req.usuarioAutenticado?.sub;
+      if (!actorId) throw new ErrorTokenInvalido();
+      const validacion = esquemaParametroUuid.safeParse(req.params);
+      if (!validacion.success) {
+        res.status(400).json({ error: { codigo: 'VALIDACION_FALLIDA', mensaje: 'ID inválido' } });
+        return;
+      }
+      const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
+      await this.casoUso.revocarInvitacion(validacion.data.id, actorId, direccionIp);
+      res.status(200).json({ mensaje: 'Invitación revocada correctamente' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public actualizarPermisos = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const actorId = req.usuarioAutenticado?.sub;
+      if (!actorId) throw new ErrorTokenInvalido();
+      const validacion = esquemaParametroUuid.safeParse(req.params);
+      if (!validacion.success) {
+        res.status(400).json({ error: { codigo: 'VALIDACION_FALLIDA', mensaje: 'ID inválido' } });
+        return;
+      }
+      const datos = req.body as z.infer<typeof esquemaActualizarPermisos>;
+      const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
+
+      const usuario = await this.casoUso.actualizarPermisosUsuario({
+        usuarioId: validacion.data.id,
+        rol: datos.rol,
+        permisosModulos: datos.permisosModulos,
+        actorId,
+        direccionIp,
+      });
+      res.status(200).json({ usuario });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public cambiarEstado = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const actorId = req.usuarioAutenticado?.sub;
+      if (!actorId) throw new ErrorTokenInvalido();
+      const validacion = esquemaParametroUuid.safeParse(req.params);
+      if (!validacion.success) {
+        res.status(400).json({ error: { codigo: 'VALIDACION_FALLIDA', mensaje: 'ID inválido' } });
+        return;
+      }
+      const datos = req.body as z.infer<typeof esquemaCambiarEstadoUsuario>;
+      const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
+
+      const usuario = await this.casoUso.cambiarEstadoUsuario({
+        usuarioId: validacion.data.id,
+        activo: datos.activo,
+        actorId,
+        direccionIp,
+      });
+      res.status(200).json({ usuario });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public revocarSesiones = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const actorId = req.usuarioAutenticado?.sub;
+      if (!actorId) throw new ErrorTokenInvalido();
+      const validacion = esquemaParametroUuid.safeParse(req.params);
+      if (!validacion.success) {
+        res.status(400).json({ error: { codigo: 'VALIDACION_FALLIDA', mensaje: 'ID inválido' } });
+        return;
+      }
+      const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
+      const resultado = await this.casoUso.revocarSesionesUsuario({
+        usuarioId: validacion.data.id,
+        actorId,
+        direccionIp,
+      });
+      res.status(200).json(resultado);
+    } catch (error) {
+      next(error);
+    }
+  };
+}
