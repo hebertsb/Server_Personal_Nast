@@ -42,7 +42,11 @@ export class GestionarConexionGithub {
   ) {}
 
   private exigirAdministrador(contexto: ContextoUsuarioGithub): void {
-    if (contexto.rol !== 'superadmin' && contexto.rol !== 'administrador') {
+    if (
+      contexto.rol !== 'superadmin' &&
+      contexto.rol !== 'administrador' &&
+      contexto.rol !== 'colaborador'
+    ) {
       throw new ErrorGithubPermisos();
     }
   }

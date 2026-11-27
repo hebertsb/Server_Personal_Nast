@@ -114,7 +114,10 @@ export default function PanelDesplieguesGithub() {
     }
   };
 
-  const esAdmin = usuario?.rol === 'superadmin' || usuario?.rol === 'administrador';
+  const esAdmin =
+    usuario?.rol === 'superadmin' ||
+    usuario?.rol === 'administrador' ||
+    usuario?.rol === 'colaborador';
 
   const cargarTodo = useCallback(async () => {
     if (!tokenAcceso) return;
