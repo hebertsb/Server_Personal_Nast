@@ -724,17 +724,55 @@ export default function PanelDesplieguesGithub() {
                         Cadena de Verificación Pre-Despliegue
                       </span>
                     </div>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold border ${
-                        deteccion.verificacion.aptoParaDesplegar
-                          ? 'bg-primary/15 text-primary border-primary/35'
-                          : 'bg-error-container text-status-critical border-status-critical/35'
-                      }`}
-                    >
-                      {deteccion.verificacion.aptoParaDesplegar
-                        ? 'Apto para desplegar'
-                        : 'No cumple requisitos'}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const pendientes = deteccion.verificacion!.pasos
+                            .filter((p) => p.estado !== 'aprobado')
+                            .map(
+                              (p) =>
+                                `- [${p.estado.toUpperCase()}] ${p.nombre}: ${p.detalle}${
+                                  p.recomendacion ? ` -> ${p.recomendacion}` : ''
+                                }`,
+                            )
+                            .join('\n');
+                          const promptAgente = [
+                            `Prepara el repositorio "${repoEnAsistente.nombreCompleto}" (rama "${repoEnAsistente.ramaPrincipal}") para desplegarlo en mi servidor HomeSOC (Docker):`,
+                            '',
+                            `Puerto asignado por HomeSOC: ${puertoAsistente} (el contenedor debe leer la variable de entorno PORT o exponer ese puerto).`,
+                            pendientes
+                              ? `\nHallazgos de la cadena de verificación de HomeSOC:\n${pendientes}`
+                              : '\nTodos los requisitos obligatorios están aprobados; verifica que el build Docker sea limpio.',
+                            '',
+                            'Requisitos obligatorios para cualquier lenguaje:',
+                            '1. Crear/ajustar un Dockerfile funcional en la raíz (multi-stage si aplica) que escuche en 0.0.0.0:$PORT.',
+                            '2. Crear un .dockerignore (excluir .git, .env, node_modules, __pycache__, dist temporales).',
+                            '3. NO subir archivos .env ni secretos al repositorio; listar qué variables de entorno necesita la app para cargarlas cifradas en HomeSOC (o vía MCP guardar_variable_proyecto).',
+                            '4. Hacer commit y git push a la rama principal; si tienes MCP de HomeSOC conectado, dispara conectar_proyecto_despliegue / redeploy_proyecto.',
+                          ].join('\n');
+                          void navigator.clipboard.writeText(promptAgente);
+                          setAviso(
+                            'Prompt de despliegue copiado. Pégalo en tu agente (VS Code / Claude / Codex).',
+                          );
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-card hover:bg-surface-card-elevated border border-primary/35 text-[11px] font-semibold text-primary cursor-pointer transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">content_copy</span>
+                        <span>Copiar prompt para agente</span>
+                      </button>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold border ${
+                          deteccion.verificacion.aptoParaDesplegar
+                            ? 'bg-primary/15 text-primary border-primary/35'
+                            : 'bg-error-container text-status-critical border-status-critical/35'
+                        }`}
+                      >
+                        {deteccion.verificacion.aptoParaDesplegar
+                          ? 'Apto para desplegar'
+                          : 'No cumple requisitos'}
+                      </span>
+                    </div>
                   </div>
 
                   <p className="text-xs text-text-muted">{deteccion.verificacion.resumen}</p>
