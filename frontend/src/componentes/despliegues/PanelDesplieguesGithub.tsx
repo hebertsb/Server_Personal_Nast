@@ -1306,6 +1306,24 @@ export default function PanelDesplieguesGithub() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      {(() => {
+                        const urlVscode = construirUrlCodeServer(repo.nombre);
+                        if (!urlVscode) return null;
+                        return (
+                          <a
+                            href={urlVscode}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={`Abrir ${repo.nombre} en VS Code Web`}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-low hover:bg-surface-card-elevated border border-border-hairline hover:border-primary/40 text-xs font-semibold text-text-primary transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[15px] text-primary">
+                              code
+                            </span>
+                            <span>VS Code</span>
+                          </a>
+                        );
+                      })()}
                       {yaConectado ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/12 border border-primary/25 text-xs font-semibold text-primary">
                           <span className="material-symbols-outlined text-[15px]">check_circle</span>
