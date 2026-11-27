@@ -113,6 +113,7 @@ async function iniciarServidor(): Promise<void> {
   const colectorPihole = new ColectorPihole({
     modo: config.PIHOLE_MODO,
     apiUrl: config.PIHOLE_API_URL,
+    apiPassword: config.PIHOLE_API_PASSWORD,
   });
   const clienteGithub =
     config.GITHUB_MODO === 'real' ? new ClienteGithubApi() : new ClienteGithubSimulado();

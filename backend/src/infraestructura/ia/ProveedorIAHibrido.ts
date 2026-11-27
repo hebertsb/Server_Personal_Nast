@@ -31,7 +31,7 @@ export class ProveedorIAHibrido implements ProveedorIA {
   constructor(private readonly config: ConfigProveedorIA) {
     if ((config.modo === 'nube' || config.modo === 'auto') && config.apiKey.length > 10) {
       this.nombre = `gemini:${config.modelo}`;
-    } else if (config.modo === 'ollama') {
+    } else if (config.modo === 'ollama' || (config.modo === 'auto' && config.ollamaUrl)) {
       this.nombre = `ollama:${config.modelo}`;
     } else {
       this.nombre = this.respaldo.nombre;
@@ -59,12 +59,18 @@ export class ProveedorIAHibrido implements ProveedorIA {
         return json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
       }
 
-      if (this.config.modo === 'ollama') {
-        const r = await fetch(`${this.config.ollamaUrl}/api/generate`, {
+      if (this.config.modo === 'ollama' || (this.config.modo === 'auto' && this.config.ollamaUrl)) {
+        const r = await fetch(`${this.config.ollamaUrl.replace(/\/+$/, '')}/api/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: this.config.modelo, prompt, stream: false }),
-          signal: AbortSignal.timeout(10_000),
+          body: JSON.stringify({
+            model: this.config.modelo,
+            prompt,
+            stream: false,
+            keep_alive: '10m',
+            options: { num_predict: 180, temperature: 0.3 },
+          }),
+          signal: AbortSignal.timeout(45_000),
         });
         if (!r.ok) return null;
         const json = (await r.json()) as { response?: string };
