@@ -159,10 +159,8 @@ export default function FormularioLogin() {
   const [recordarSesion, setRecordarSesion] = useState(true);
   const [diasRecordar, setDiasRecordar] = useState(7);
 
-  // Campos de Login
-  const [nombreUsuario, setNombreUsuario] = useState(
-    () => localStorage.getItem('homesoc_ultimo_usuario') || '',
-  );
+  // Campos de Login (sin guardar usuario ni credenciales en localStorage)
+  const [nombreUsuario, setNombreUsuario] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
 
@@ -251,11 +249,11 @@ export default function FormularioLogin() {
 
   const diasEfectivos = recordarSesion ? diasRecordar : 0;
 
-  const guardarUsuarioSiRecuerda = (nombre: string) => {
-    if (recordarSesion) {
-      localStorage.setItem('homesoc_ultimo_usuario', nombre.trim());
-    } else {
+  const guardarUsuarioSiRecuerda = (_nombre: string) => {
+    try {
       localStorage.removeItem('homesoc_ultimo_usuario');
+    } catch {
+      // Sin persistencia en localStorage por seguridad
     }
   };
 

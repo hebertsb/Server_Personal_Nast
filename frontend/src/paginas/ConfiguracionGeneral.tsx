@@ -55,12 +55,8 @@ export default function ConfiguracionGeneral() {
   const [permisoTokenMcp, setPermisoTokenMcp] = useState<'lectura' | 'escritura'>('lectura');
   const [tokenMcpRecienCreado, setTokenMcpRecienCreado] = useState<string | null>(null);
   const [creandoTokenMcp, setCreandoTokenMcp] = useState(false);
-  const [urlCodeServer, setUrlCodeServer] = useState<string>(
-    () => localStorage.getItem('homesoc_codeserver_url') || '',
-  );
-  const [rutaCodeServer, setRutaCodeServer] = useState<string>(
-    () => localStorage.getItem('homesoc_codeserver_ruta') || '/home/coder/project',
-  );
+  const [urlCodeServer, setUrlCodeServer] = useState<string>('');
+  const [rutaCodeServer, setRutaCodeServer] = useState<string>('/home/coder/project');
   const [cargando, setCargando] = useState(true);
   const [probandoAlerta, setProbandoAlerta] = useState(false);
   const [actualizandoEvento, setActualizandoEvento] = useState<string | null>(null);
@@ -100,8 +96,12 @@ export default function ConfiguracionGeneral() {
       if (resEditor?.editor) {
         setUrlCodeServer(resEditor.editor.url);
         setRutaCodeServer(resEditor.editor.rutaBase);
-        localStorage.setItem('homesoc_codeserver_url', resEditor.editor.url);
-        localStorage.setItem('homesoc_codeserver_ruta', resEditor.editor.rutaBase);
+      }
+      try {
+        localStorage.removeItem('homesoc_codeserver_url');
+        localStorage.removeItem('homesoc_codeserver_ruta');
+      } catch {
+        // Ignorar
       }
       setError(null);
     } catch (err) {
@@ -657,9 +657,7 @@ export default function ConfiguracionGeneral() {
                       tokenAcceso,
                     );
                   }
-                  localStorage.setItem('homesoc_codeserver_url', limpia);
-                  localStorage.setItem('homesoc_codeserver_ruta', rutaLimpia);
-                  setAviso('Enlace de VS Code Web guardado y sincronizado en todos tus dispositivos');
+                  setAviso('Enlace de VS Code Web guardado y sincronizado en PostgreSQL');
                 } catch (err) {
                   setError(
                     err instanceof ErrorApi

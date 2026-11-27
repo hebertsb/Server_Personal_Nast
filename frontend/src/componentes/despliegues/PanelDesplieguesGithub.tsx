@@ -82,12 +82,8 @@ export default function PanelDesplieguesGithub() {
   const [ejecutandoPolling, setEjecutandoPolling] = useState(false);
   const [explicacionesIa, setExplicacionesIa] = useState<Record<string, ExplicacionFalloItem>>({});
   const [explicandoId, setExplicandoId] = useState<string | null>(null);
-  const [urlEditorSync, setUrlEditorSync] = useState<string>(
-    () => localStorage.getItem('homesoc_codeserver_url') || '',
-  );
-  const [rutaEditorSync, setRutaEditorSync] = useState<string>(
-    () => localStorage.getItem('homesoc_codeserver_ruta') || '/home/coder/project',
-  );
+  const [urlEditorSync, setUrlEditorSync] = useState<string>('');
+  const [rutaEditorSync, setRutaEditorSync] = useState<string>('/home/coder/project');
 
   const construirUrlCodeServer = (nombreProyecto: string): string | null => {
     const base = urlEditorSync.trim().replace(/\/+$/, '');
@@ -134,8 +130,6 @@ export default function PanelDesplieguesGithub() {
       if (resEditor?.editor) {
         setUrlEditorSync(resEditor.editor.url);
         setRutaEditorSync(resEditor.editor.rutaBase);
-        localStorage.setItem('homesoc_codeserver_url', resEditor.editor.url);
-        localStorage.setItem('homesoc_codeserver_ruta', resEditor.editor.rutaBase);
       }
       setConexion(estado);
       setOauthHabilitado(Boolean(oauthOk));
