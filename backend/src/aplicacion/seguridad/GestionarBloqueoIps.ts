@@ -28,7 +28,7 @@ export class GestionarBloqueoIps {
     rolUsuario: RolUsuario;
     ipOrigenAdmin: string;
   }): Promise<IpBloqueada> {
-    if (entrada.rolUsuario !== 'administrador') {
+    if (entrada.rolUsuario !== 'superadmin' && entrada.rolUsuario !== 'administrador') {
       throw new ErrorPermisosInsuficientes();
     }
 
@@ -71,7 +71,7 @@ export class GestionarBloqueoIps {
     rolUsuario: RolUsuario;
     ipOrigenAdmin: string;
   }): Promise<void> {
-    if (entrada.rolUsuario !== 'administrador') {
+    if (entrada.rolUsuario !== 'superadmin' && entrada.rolUsuario !== 'administrador') {
       throw new ErrorPermisosInsuficientes();
     }
 

@@ -34,6 +34,8 @@ const esquemaEntorno = z.object({
   PIHOLE_MODO: z.enum(['simulacion', 'real']).default('simulacion'),
   PIHOLE_API_URL: z.string().trim().default('http://localhost:8080/api'),
   GITHUB_MODO: z.enum(['simulacion', 'real']).default('simulacion'),
+  GITHUB_OAUTH_CLIENT_ID: z.string().trim().default(''),
+  GITHUB_OAUTH_CLIENT_SECRET: z.string().trim().default(''),
   GITHUB_WEBHOOK_SECRET: z
     .string()
     .trim()

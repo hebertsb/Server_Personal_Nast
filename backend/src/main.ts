@@ -288,7 +288,10 @@ async function iniciarServidor(): Promise<void> {
     casoUsoAccesosProyecto,
     config.NODE_ENV === 'development',
   );
-  const githubController = new GithubController(casoUsoConexionGithub);
+  const githubController = new GithubController(casoUsoConexionGithub, {
+    clientId: config.GITHUB_OAUTH_CLIENT_ID,
+    clientSecret: config.GITHUB_OAUTH_CLIENT_SECRET,
+  });
   const desplieguesController = new DesplieguesController(
     casoUsoProyectosDespliegue,
     repositorioSeguridad2FA,

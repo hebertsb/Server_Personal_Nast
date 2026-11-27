@@ -42,6 +42,9 @@ function etiquetaTipoProyecto(tipo: TipoProyectoDespliegue): string {
 export default function PanelDesplieguesGithub() {
   const { tokenAcceso, usuario } = usarAutenticacion();
   const [conexion, setConexion] = useState<ConexionGithubItem | null>(null);
+  const [oauthHabilitado, setOauthHabilitado] = useState(false);
+  const [mostrarPatAvanzado, setMostrarPatAvanzado] = useState(false);
+  const [iniciandoOAuth, setIniciandoOAuth] = useState(false);
   const [repositorios, setRepositorios] = useState<RepositorioGithubItem[]>([]);
   const [proyectos, setProyectos] = useState<ProyectoConectadoItem[]>([]);
   const [tokenInput, setTokenInput] = useState('');
@@ -111,17 +114,19 @@ export default function PanelDesplieguesGithub() {
     }
   };
 
-  const esAdmin = usuario?.rol === 'administrador';
+  const esAdmin = usuario?.rol === 'superadmin' || usuario?.rol === 'administrador';
 
   const cargarTodo = useCallback(async () => {
     if (!tokenAcceso) return;
     setCargando(true);
     try {
-      const [{ conexion: estado }, { proyectos: listaProyectos }] = await Promise.all([
-        githubServicio.obtenerEstado(tokenAcceso),
-        githubServicio.listarProyectos(tokenAcceso),
-      ]);
+      const [{ conexion: estado, oauthHabilitado: oauthOk }, { proyectos: listaProyectos }] =
+        await Promise.all([
+          githubServicio.obtenerEstado(tokenAcceso),
+          githubServicio.listarProyectos(tokenAcceso),
+        ]);
       setConexion(estado);
+      setOauthHabilitado(Boolean(oauthOk));
       setProyectos(listaProyectos);
       if (estado) {
         const { repositorios: lista } = await githubServicio.listarRepositorios(tokenAcceso);
@@ -139,7 +144,31 @@ export default function PanelDesplieguesGithub() {
 
   useEffect(() => {
     void cargarTodo();
+    const params = new URLSearchParams(window.location.search);
+    const estadoOAuth = params.get('oauth');
+    if (estadoOAuth === 'ok') {
+      setAviso('¡Cuenta de GitHub conectada mediante OAuth! Tus repositorios ya están sincronizados.');
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (estadoOAuth === 'error') {
+      setError(
+        `No se pudo completar la conexión con GitHub (${params.get('motivo') || 'cancelado'}).`,
+      );
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, [cargarTodo]);
+
+  const manejarIniciarOAuth = async () => {
+    if (!tokenAcceso) return;
+    setIniciandoOAuth(true);
+    setError(null);
+    try {
+      const { urlAutorizacion } = await githubServicio.iniciarOAuth(tokenAcceso);
+      window.location.href = urlAutorizacion;
+    } catch (err) {
+      setError(err instanceof ErrorApi ? err.message : 'No se pudo iniciar GitHub OAuth');
+      setIniciandoOAuth(false);
+    }
+  };
 
   useEffect(() => {
     if (!aviso) return;
@@ -585,25 +614,60 @@ export default function PanelDesplieguesGithub() {
             </div>
           </div>
         ) : (
-          <form onSubmit={(e) => void manejarConectar(e)} className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="password"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              disabled={!esAdmin || guardando}
-              autoComplete="off"
-              className="flex-1 rounded-xl bg-surface-low border border-border-hairline px-3.5 py-2 text-xs font-mono text-text-primary placeholder:text-text-dim focus:outline-none focus:border-primary"
-            />
-            <button
-              type="submit"
-              disabled={!esAdmin || guardando || tokenInput.trim().length < 20}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-[var(--hs-on-accent)] text-xs font-semibold cursor-pointer disabled:opacity-50"
-            >
-              <span className="material-symbols-outlined text-[16px]">key</span>
-              <span>{guardando ? 'Validando…' : 'Conectar con PAT'}</span>
-            </button>
-          </form>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <button
+                type="button"
+                disabled={!esAdmin || iniciandoOAuth || !oauthHabilitado}
+                onClick={() => void manejarIniciarOAuth()}
+                className="inline-flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-xl bg-[#24292f] hover:bg-[#1b1f23] text-white text-xs sm:text-sm font-semibold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" aria-hidden="true">
+                  <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1.16-.02-2.11-3.2.69-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.68 0-1.25.45-2.28 1.18-3.08-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.16 1.18a10.9 10.9 0 0 1 5.76 0c2.19-1.49 3.16-1.18 3.16-1.18.62 1.58.23 2.75.11 3.04.74.8 1.18 1.83 1.18 3.08 0 4.41-2.69 5.39-5.25 5.67.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.66.79.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+                </svg>
+                <span>
+                  {iniciandoOAuth
+                    ? 'Redirigiendo a GitHub…'
+                    : oauthHabilitado
+                      ? 'Conectar con GitHub (OAuth)'
+                      : 'Conectar con GitHub (configura Client ID/Secret)'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMostrarPatAvanzado((prev) => !prev)}
+                className="text-xs text-text-muted hover:text-primary underline-offset-2 hover:underline cursor-pointer self-start sm:self-center"
+              >
+                {mostrarPatAvanzado ? 'Ocultar conexión manual por PAT' : 'Avanzado: conectar con PAT'}
+              </button>
+            </div>
+
+            {(mostrarPatAvanzado || !oauthHabilitado) && (
+              <form
+                onSubmit={(e) => void manejarConectar(e)}
+                className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-border-hairline"
+              >
+                <input
+                  type="password"
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  disabled={!esAdmin || guardando}
+                  autoComplete="off"
+                  className="flex-1 rounded-xl bg-surface-low border border-border-hairline px-3.5 py-2 text-xs font-mono text-text-primary placeholder:text-text-dim focus:outline-none focus:border-primary"
+                />
+                <button
+                  type="submit"
+                  disabled={!esAdmin || guardando || tokenInput.trim().length < 20}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-[var(--hs-on-accent)] text-xs font-semibold cursor-pointer disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[16px]">key</span>
+                  <span>{guardando ? 'Validando…' : 'Conectar con PAT'}</span>
+                </button>
+              </form>
+            )}
+          </div>
         )}
       </div>
 

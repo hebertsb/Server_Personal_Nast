@@ -41,7 +41,11 @@ export class ControlarContenedor {
   public async ejecutar(
     entrada: EntradaControlarContenedor,
   ): Promise<ResultadoControlarContenedor> {
-    if (entrada.rolUsuario !== 'administrador') {
+    if (
+      entrada.rolUsuario !== 'superadmin' &&
+      entrada.rolUsuario !== 'administrador' &&
+      entrada.rolUsuario !== 'colaborador'
+    ) {
       throw new ErrorPermisosInsuficientes();
     }
 

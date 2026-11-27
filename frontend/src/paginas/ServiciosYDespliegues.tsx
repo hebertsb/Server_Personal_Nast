@@ -97,7 +97,10 @@ export default function ServiciosYDespliegues() {
     controlarContenedor,
   } = usarContenedores(10_000);
 
-  const [pestana, setPestana] = useState<PestanaModulo>('contenedores');
+  const [pestana, setPestana] = useState<PestanaModulo>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('oauth') ? 'despliegues' : 'contenedores';
+  });
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todos');
   const [busqueda, setBusqueda] = useState('');
   const [confirmacion, setConfirmacion] = useState<ConfirmacionAccion | null>(null);

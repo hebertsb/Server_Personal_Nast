@@ -315,12 +315,18 @@ export function crearRutas(deps: DependenciasRutas): Router {
     deps.accesosProyectoController.simular,
   );
 
-  // Módulo de despliegues desde GitHub (Fase 3a: RF-28 y RF-29)
+  // Módulo de despliegues desde GitHub (Fase 3a: RF-28 y RF-29 + OAuth)
   routerApiV1.get(
     '/github/conexion',
     deps.middlewareAutenticacion,
     deps.githubController.obtenerEstado,
   );
+  routerApiV1.post(
+    '/github/oauth/iniciar',
+    deps.middlewareAutenticacion,
+    deps.githubController.iniciarOAuth,
+  );
+  routerApiV1.get('/github/oauth/callback', deps.githubController.callbackOAuth);
   routerApiV1.post(
     '/github/conexion',
     deps.middlewareAutenticacion,

@@ -77,7 +77,11 @@ export class GestionarProyectosDespliegue {
   ) {}
 
   private exigirAdministrador(ctx: ContextoDespliegue): void {
-    if (ctx.rol !== 'administrador') {
+    if (
+      ctx.rol !== 'superadmin' &&
+      ctx.rol !== 'administrador' &&
+      ctx.rol !== 'colaborador'
+    ) {
       throw new ErrorGithubPermisos();
     }
   }

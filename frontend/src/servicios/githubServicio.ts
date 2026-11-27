@@ -89,8 +89,16 @@ export interface ResultadoDeteccionItem {
 }
 
 export const githubServicio = {
-  obtenerEstado: (tokenAcceso: string): Promise<{ conexion: ConexionGithubItem | null }> =>
-    apiCliente.get<{ conexion: ConexionGithubItem | null }>('/github/conexion', tokenAcceso),
+  obtenerEstado: (
+    tokenAcceso: string,
+  ): Promise<{ conexion: ConexionGithubItem | null; oauthHabilitado?: boolean }> =>
+    apiCliente.get<{ conexion: ConexionGithubItem | null; oauthHabilitado?: boolean }>(
+      '/github/conexion',
+      tokenAcceso,
+    ),
+
+  iniciarOAuth: (tokenAcceso: string): Promise<{ urlAutorizacion: string }> =>
+    apiCliente.post<{ urlAutorizacion: string }>('/github/oauth/iniciar', {}, tokenAcceso),
 
   conectar: (token: string, tokenAcceso: string): Promise<{ conexion: ConexionGithubItem }> =>
     apiCliente.post<{ conexion: ConexionGithubItem }>('/github/conexion', { token }, tokenAcceso),

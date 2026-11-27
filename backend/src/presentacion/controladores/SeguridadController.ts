@@ -268,7 +268,7 @@ export class SeguridadController {
     try {
       const usuario = req.usuarioAutenticado;
       if (!usuario) throw new ErrorTokenInvalido();
-      if (usuario.rol !== 'administrador') {
+      if (usuario.rol !== 'superadmin' && usuario.rol !== 'administrador') {
         res.status(403).json({
           error: {
             codigo: 'PERMISOS_INSUFICIENTES',

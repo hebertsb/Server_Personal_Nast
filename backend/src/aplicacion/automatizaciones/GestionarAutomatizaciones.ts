@@ -78,7 +78,7 @@ export class GestionarAutomatizaciones {
   ) {}
 
   private exigirAdministrador(ctx: ContextoAutomatizacion): void {
-    if (ctx.rol !== 'administrador') {
+    if (ctx.rol !== 'superadmin' && ctx.rol !== 'administrador') {
       throw new ErrorPermisosInsuficientes();
     }
   }

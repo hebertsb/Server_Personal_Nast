@@ -43,7 +43,7 @@ export class GestionarTokensMcp {
     permiso: PermisoMcp,
     ctx: ContextoAdminMcp,
   ): Promise<{ tokenPlano: string; token: TokenMcpVista }> {
-    if (ctx.rol !== 'administrador') {
+    if (ctx.rol !== 'superadmin' && ctx.rol !== 'administrador') {
       throw new ErrorPermisosInsuficientes();
     }
     const tokenPlano = `hs_mcp_${crypto.randomBytes(24).toString('hex')}`;
@@ -74,7 +74,7 @@ export class GestionarTokensMcp {
   }
 
   public async revocarToken(id: string, ctx: ContextoAdminMcp): Promise<boolean> {
-    if (ctx.rol !== 'administrador') {
+    if (ctx.rol !== 'superadmin' && ctx.rol !== 'administrador') {
       throw new ErrorPermisosInsuficientes();
     }
     const revocado = await this.repo.revocar(id);
