@@ -29,9 +29,23 @@ interface OpcionesSolicitud {
   metodo?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   cuerpo?: unknown;
   token?: string | null;
+  _esReintento?: boolean;
 }
 
 const baseApi = (import.meta.env?.VITE_API_BASE_URL as string | undefined) || '/api/v1';
+
+let renovadorToken: (() => Promise<string | null>) | null = null;
+let promesaRenovacionEnCurso: Promise<string | null> | null = null;
+
+async function intentarRenovarTokenUnico(): Promise<string | null> {
+  if (!renovadorToken) return null;
+  if (!promesaRenovacionEnCurso) {
+    promesaRenovacionEnCurso = renovadorToken().finally(() => {
+      promesaRenovacionEnCurso = null;
+    });
+  }
+  return promesaRenovacionEnCurso;
+}
 
 async function solicitar<T>(ruta: string, opciones: OpcionesSolicitud = {}): Promise<T> {
   const headers: Record<string, string> = {
@@ -62,6 +76,23 @@ async function solicitar<T>(ruta: string, opciones: OpcionesSolicitud = {}): Pro
     );
   }
 
+  // Renovación silenciosa automática ante JWT de acceso expirado (HTTP 401)
+  if (
+    respuesta.status === 401 &&
+    opciones.token &&
+    !opciones._esReintento &&
+    !ruta.startsWith('/auth/')
+  ) {
+    const nuevoToken = await intentarRenovarTokenUnico();
+    if (nuevoToken) {
+      return solicitar<T>(ruta, {
+        ...opciones,
+        token: nuevoToken,
+        _esReintento: true,
+      });
+    }
+  }
+
   const contenidoTexto = await respuesta.text();
   let datos: unknown = null;
   if (contenidoTexto) {
@@ -85,6 +116,9 @@ async function solicitar<T>(ruta: string, opciones: OpcionesSolicitud = {}): Pro
 
 export const apiCliente = {
   base: baseApi,
+  registrarRenovadorToken: (fn: (() => Promise<string | null>) | null) => {
+    renovadorToken = fn;
+  },
   get: <T>(ruta: string, token?: string | null) =>
     solicitar<T>(ruta, { metodo: 'GET', token }),
   post: <T>(ruta: string, cuerpo?: unknown, token?: string | null) =>

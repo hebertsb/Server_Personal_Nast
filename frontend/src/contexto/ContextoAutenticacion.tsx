@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { apiCliente } from '../servicios/apiCliente';
 import {
   autenticacionServicio,
   ModuloSistema,
@@ -92,16 +93,21 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
     [guardarSesion],
   );
 
-  const renovarSesion = useCallback(async (): Promise<boolean> => {
+  const renovarSesionYDevolverToken = useCallback(async (): Promise<string | null> => {
     try {
       const respuesta = await autenticacionServicio.renovar();
       guardarSesion(respuesta);
-      return true;
+      return respuesta.tokenAcceso;
     } catch {
       limpiarEstadoLocal();
-      return false;
+      return null;
     }
   }, [guardarSesion, limpiarEstadoLocal]);
+
+  const renovarSesion = useCallback(async (): Promise<boolean> => {
+    const token = await renovarSesionYDevolverToken();
+    return Boolean(token);
+  }, [renovarSesionYDevolverToken]);
 
   const cerrarSesion = useCallback(async (): Promise<void> => {
     try {
@@ -135,6 +141,22 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
     },
     [usuario],
   );
+
+  useEffect(() => {
+    apiCliente.registrarRenovadorToken(renovarSesionYDevolverToken);
+    return () => {
+      apiCliente.registrarRenovadorToken(null);
+    };
+  }, [renovarSesionYDevolverToken]);
+
+  useEffect(() => {
+    if (!usuario || !tokenAcceso) return;
+    // Renueva proactivamente el JWT de acceso cada 11 minutos (expira a los 15m)
+    const id = window.setInterval(() => {
+      void renovarSesionYDevolverToken();
+    }, 11 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, [usuario, tokenAcceso, renovarSesionYDevolverToken]);
 
   useEffect(() => {
     if (inicializadoRef.current) return;
