@@ -347,6 +347,11 @@ export function crearRutas(deps: DependenciasRutas): Router {
 
   // Módulo de proyectos desplegados y variables cifradas (Fase 3b: RF-30..31, RF-34..39)
   routerApiV1.get(
+    '/despliegues/puerto-sugerido',
+    deps.middlewareAutenticacion,
+    deps.desplieguesController.sugerirPuerto,
+  );
+  routerApiV1.get(
     '/despliegues/proyectos',
     deps.middlewareAutenticacion,
     deps.desplieguesController.listarProyectos,

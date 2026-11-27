@@ -257,11 +257,15 @@ export default function PanelDesplieguesGithub() {
     setRepoEnAsistente(repo);
     setDeteccion(null);
     setDetectando(true);
-    const puertoSugerido = 4100 + proyectos.length * 10;
-    setPuertoAsistente(String(puertoSugerido));
     setModoAsistente('polling');
     setAprobacionAsistente(false);
     try {
+      const sug = await githubServicio
+        .sugerirPuerto(tokenAcceso)
+        .catch(() => ({ puertoSugerido: 4100 + proyectos.length * 10, puertosOcupados: [] }));
+      const puertoSugerido = sug.puertoSugerido;
+      setPuertoAsistente(String(puertoSugerido));
+
       const { deteccion: res } = await githubServicio.detectarProyecto(
         {
           nombreCompleto: repo.nombreCompleto,

@@ -127,6 +127,14 @@ export const githubServicio = {
     apiCliente.get<{ repositorios: RepositorioGithubItem[] }>('/github/repositorios', tokenAcceso),
 
   // Fase 3b — Proyectos desplegados, auto-detección y variables cifradas
+  sugerirPuerto: (
+    tokenAcceso: string,
+  ): Promise<{ puertoSugerido: number; puertosOcupados: number[] }> =>
+    apiCliente.get<{ puertoSugerido: number; puertosOcupados: number[] }>(
+      '/despliegues/puerto-sugerido',
+      tokenAcceso,
+    ),
+
   listarProyectos: (tokenAcceso: string): Promise<{ proyectos: ProyectoConectadoItem[] }> =>
     apiCliente.get<{ proyectos: ProyectoConectadoItem[] }>('/despliegues/proyectos', tokenAcceso),
 

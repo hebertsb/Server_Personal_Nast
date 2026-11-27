@@ -24,6 +24,7 @@ import { crearAplicacion } from './app';
 import { cargarConfiguracion } from './config/env';
 import { PoliticaBloqueoFuerzaBruta } from './dominio/reglas/PoliticaBloqueoFuerzaBruta';
 import { ColectorDocker } from './infraestructura/docker/ColectorDocker';
+import { EjecutorDespliegueDocker } from './infraestructura/docker/EjecutorDespliegueDocker';
 import { ClienteGithubApi } from './infraestructura/github/ClienteGithubApi';
 import { ClienteGithubSimulado } from './infraestructura/github/ClienteGithubSimulado';
 import { ProveedorIAHibrido } from './infraestructura/ia/ProveedorIAHibrido';
@@ -209,6 +210,26 @@ async function iniciarServidor(): Promise<void> {
     servicioCifrado,
     repositorioAuditoria,
   );
+  const ejecutorDespliegue =
+    config.DESPLIEGUE_MODO === 'real' ? new EjecutorDespliegueDocker() : undefined;
+
+  const listarPuertosDockerEnUso = async (): Promise<number[]> => {
+    try {
+      const contenedores = await colectorDocker.recolectar();
+      const puertos: number[] = [];
+      for (const c of contenedores) {
+        for (const p of c.puertos ?? []) {
+          if (typeof p.publico === 'number' && p.publico > 0) {
+            puertos.push(p.publico);
+          }
+        }
+      }
+      return puertos;
+    } catch {
+      return [];
+    }
+  };
+
   const casoUsoProyectosDespliegue = new GestionarProyectosDespliegue(
     clienteGithub,
     repositorioConexionGithub,
@@ -216,6 +237,8 @@ async function iniciarServidor(): Promise<void> {
     servicioCifrado,
     repositorioAuditoria,
     notificarEvento,
+    ejecutorDespliegue,
+    listarPuertosDockerEnUso,
   );
   const casoUsoAutomatizaciones = new GestionarAutomatizaciones(
     repositorioAutomatizaciones,

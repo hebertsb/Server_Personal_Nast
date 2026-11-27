@@ -89,6 +89,19 @@ export class DesplieguesController {
     });
   }
 
+  public sugerirPuerto = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const resultado = await this.casoUso.sugerirProximoPuertoLibre();
+      res.status(200).json(resultado);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   public detectar = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const ctx = this.contexto(req);

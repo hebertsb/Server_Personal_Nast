@@ -18,6 +18,7 @@ import {
   ErrorGithubPermisos,
 } from '../../dominio/errores/ErroresGithub';
 import { ClienteGithub } from '../../dominio/interfaces/ClienteGithub';
+import { EjecutorDespliegue } from '../../dominio/interfaces/EjecutorDespliegue';
 import { RepositorioAuditoria } from '../../dominio/interfaces/RepositorioAuditoria';
 import { RepositorioConexionGithub } from '../../dominio/interfaces/RepositorioConexionGithub';
 import {
@@ -75,7 +76,42 @@ export class GestionarProyectosDespliegue {
     private readonly cifrado: ServicioCifrado,
     private readonly auditoria: RepositorioAuditoria,
     private readonly notificarEvento?: NotificarEvento,
+    private readonly ejecutorDespliegue?: EjecutorDespliegue,
+    private readonly listarPuertosEnUso?: () => Promise<number[]>,
   ) {}
+
+  /** Inspecciona puertos Docker activos + proyectos registrados y devuelve el próximo puerto libre. */
+  public async sugerirProximoPuertoLibre(): Promise<{
+    puertoSugerido: number;
+    puertosOcupados: number[];
+  }> {
+    const ocupados = new Set<number>([
+      22, 53, 80, 443, 3000, 3001, 3100, 3101, 4000, 5432, 5678, 8000, 8083, 8085, 8090, 8443,
+      8444, 9443,
+    ]);
+
+    const proyectos = await this.repoDespliegues.listarProyectos();
+    for (const p of proyectos) {
+      ocupados.add(p.puerto);
+    }
+
+    if (this.listarPuertosEnUso) {
+      const puertosHost = await this.listarPuertosEnUso();
+      for (const p of puertosHost) {
+        ocupados.add(p);
+      }
+    }
+
+    let candidato = 4100;
+    while (ocupados.has(candidato) && candidato < 65000) {
+      candidato++;
+    }
+
+    return {
+      puertoSugerido: candidato,
+      puertosOcupados: Array.from(ocupados).sort((a, b) => a - b),
+    };
+  }
 
   private exigirAdministrador(ctx: ContextoDespliegue): void {
     if (
@@ -439,6 +475,51 @@ export class GestionarProyectosDespliegue {
       });
 
       return registroFallido;
+    }
+
+    // 3b. Ejecución real en Docker del servidor (cuando DESPLIEGUE_MODO=real)
+    if (this.ejecutorDespliegue?.modo === 'real') {
+      const conexionGh = await this.repoGithub.obtenerPorUsuario(ctx.usuarioId);
+      if (!conexionGh) {
+        throw new ErrorGithubNoConectado();
+      }
+      const tokenPlano = this.cifrado.descifrar(conexionGh.tokenCifrado);
+      const resultadoReal = await this.ejecutorDespliegue.ejecutar({
+        nombreProyecto: proyecto.nombreProyecto,
+        nombreCompleto: proyecto.nombreCompleto,
+        rama: proyecto.rama,
+        commitSha,
+        puerto: proyecto.puerto,
+        tipoProyecto: proyecto.tipoProyecto,
+        plantillaDockerfile: plantilla,
+        tokenGithub: tokenPlano,
+        variablesEntorno: mapaInyeccion,
+      });
+
+      lineasLog.push(resultadoReal.logConstruccion);
+
+      const registroReal = await this.repoDespliegues.registrarDespliegue({
+        repositorioId: proyecto.id,
+        commitSha,
+        origen,
+        estado: resultadoReal.exitoso ? 'exitoso' : 'fallido',
+        logConstruccion: lineasLog.join('\n'),
+        duracionMs: Math.max(200, Date.now() - inicio),
+        ejecutadoPor: ctx.nombreUsuario,
+        healthCheckOk: resultadoReal.healthCheckOk,
+        logHealthCheck: resultadoReal.logHealthCheck,
+        rollbackAutomatico: false,
+        despliegueOrigenId: opciones.despliegueOrigenId ?? null,
+        escaneos: gate.escaneos,
+      });
+
+      await this.repoDespliegues.actualizarEstadoProyecto(
+        proyecto.id,
+        resultadoReal.exitoso ? 'activo' : 'fallido',
+        resultadoReal.exitoso ? commitSha : commitAnterior,
+      );
+
+      return registroReal;
     }
 
     const logHealthOk = `[HealthCheck] HTTP GET http://127.0.0.1:${proyecto.puerto}/ -> 200 OK (verificado en entorno local).`;

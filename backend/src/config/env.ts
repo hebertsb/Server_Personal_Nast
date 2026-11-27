@@ -35,6 +35,7 @@ const esquemaEntorno = z.object({
   PIHOLE_API_URL: z.string().trim().default('http://host.docker.internal:80/api'),
   PIHOLE_API_PASSWORD: z.string().trim().default(''),
   GITHUB_MODO: z.enum(['simulacion', 'real']).default('simulacion'),
+  DESPLIEGUE_MODO: z.enum(['simulacion', 'real']).default('simulacion'),
   GITHUB_OAUTH_CLIENT_ID: z.string().trim().default(''),
   GITHUB_OAUTH_CLIENT_SECRET: z.string().trim().default(''),
   GITHUB_WEBHOOK_SECRET: z

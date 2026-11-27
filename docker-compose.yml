@@ -39,7 +39,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock
       - /sys/class/power_supply:/sys/class/power_supply:ro
       - /var/log/auth.log:/host/var/log/auth.log:ro
     depends_on:
