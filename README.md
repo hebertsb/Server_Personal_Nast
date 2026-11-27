@@ -155,8 +155,8 @@ docker compose up -d --build
 1. En **Configuración General → Servidor MCP**, genera un token con permiso `lectura` o `escritura`.
 2. Invoca `POST /api/v1/mcp` con `Authorization: Bearer hs_mcp_...` usando JSON-RPC 2.0 (`initialize`, `tools/list`, `tools/call`).
 3. Herramientas disponibles:
-   - **Lectura:** `obtener_estado_servidor`, `listar_contenedores`, `listar_eventos_seguridad`, `listar_proyectos_despliegue`, `resumen_seguridad_ia`, `consultar_asistente_voz`.
-   - **Escritura:** `redeploy_proyecto` (respeta Gate de Seguridad, modo de aprobación manual y registra auditoría con `origen: 'mcp'`).
+   - **Lectura:** `obtener_estado_servidor`, `listar_contenedores`, `listar_eventos_seguridad`, `listar_proyectos_despliegue`, `listar_variables_proyecto` (solo claves enmascaradas), `resumen_seguridad_ia`, `consultar_asistente_voz`.
+   - **Escritura:** `conectar_proyecto_despliegue`, `guardar_variable_proyecto` (solo escritura cifrada AES-256-GCM, nunca devuelve el valor), `redeploy_proyecto` (respeta Gate de Seguridad, modo de aprobación manual y registra auditoría con `origen: 'mcp'`).
 
 ---
 

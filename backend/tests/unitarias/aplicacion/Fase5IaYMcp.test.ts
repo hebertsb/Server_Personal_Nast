@@ -77,6 +77,20 @@ describe('Fase 5 — Módulo de IA (Strategy) y Servidor MCP con permisos acotad
 
     const proyectosMock = {
       listarProyectos: vi.fn().mockResolvedValue([]),
+      listarVariables: vi.fn().mockResolvedValue([
+        { id: 'v1', repositorioId: 'p1', clave: 'DATABASE_URL', valorEnmascarado: '••••••••', actualizadoEn: 'x' },
+      ]),
+      guardarVariable: vi.fn().mockResolvedValue({
+        id: 'v2',
+        repositorioId: '11111111-1111-4111-8111-111111111111',
+        clave: 'STRIPE_KEY',
+        valorEnmascarado: '••••••••',
+        actualizadoEn: 'x',
+      }),
+      conectarProyecto: vi.fn().mockResolvedValue({
+        proyecto: { id: 'p2', nombreProyecto: 'mi-api', estadoActual: 'configurado' },
+        despliegueInicial: null,
+      }),
       ejecutarDespliegue: vi.fn().mockResolvedValue({ id: 'd1', estado: 'exitoso' }),
     } as unknown as GestionarProyectosDespliegue;
 
@@ -121,5 +135,34 @@ describe('Fase 5 — Módulo de IA (Strategy) y Servidor MCP con permisos acotad
     expect(auditoria.registrar).toHaveBeenCalledWith(
       expect.objectContaining({ origen: 'mcp', accion: 'mcp_redeploy_proyecto' }),
     );
+
+    // Token lectura NO puede cargar variables cifradas
+    await expect(
+      ejecutor.ejecutar(
+        'guardar_variable_proyecto',
+        {
+          proyectoId: '11111111-1111-4111-8111-111111111111',
+          clave: 'STRIPE_KEY',
+          valor: 'sk_live_secreto_no_exponer',
+        },
+        validadoLectura!,
+        '127.0.0.1',
+      ),
+    ).rejects.toMatchObject({ codigo: 'PERMISOS_INSUFICIENTES' });
+
+    // Token escritura SÍ puede cargar variables cifradas en modo write-only sin exponer el valor
+    const respVar = await ejecutor.ejecutar(
+      'guardar_variable_proyecto',
+      {
+        proyectoId: '11111111-1111-4111-8111-111111111111',
+        clave: 'STRIPE_KEY',
+        valor: 'sk_live_secreto_no_exponer',
+      },
+      validadoEscritura!,
+      '127.0.0.1',
+    );
+    expect(JSON.stringify(respVar)).toContain('STRIPE_KEY');
+    expect(JSON.stringify(respVar)).toContain('••••••••');
+    expect(JSON.stringify(respVar)).not.toContain('sk_live_secreto_no_exponer');
   });
 });
