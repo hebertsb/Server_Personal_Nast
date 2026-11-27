@@ -281,8 +281,12 @@ export default function LayoutPrincipal({ children }: { children: ReactNode }) {
           onBlur={ocultarTooltip}
           className="flex items-center gap-2.5 min-w-0"
         >
-          <div className="w-9 h-9 rounded-xl bg-primary text-[var(--hs-on-accent)] flex items-center justify-center shrink-0 shadow-sm">
-            <span className="material-symbols-outlined text-[20px]">shield_with_heart</span>
+          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 shadow-sm ring-1 ring-primary/35 bg-[#081412]">
+            <img
+              src="/logo-homesoc.jpg"
+              alt="HomeSOC"
+              className="w-full h-full object-cover scale-110"
+            />
           </div>
           {expandido && (
             <div className="flex flex-col min-w-0">

@@ -314,13 +314,17 @@ export default function FormularioLogin() {
     <div className="w-full max-w-[460px] flex flex-col items-center">
       {/* Cabecera de identidad SOC */}
       <div className="flex flex-col items-center mb-6 text-center">
-        <div className="relative hs-float-slow mb-3.5">
-          <div className="absolute -inset-2 rounded-3xl bg-primary/25 blur-xl" />
-          <div className="relative w-14 h-14 rounded-2xl bg-primary text-[var(--hs-on-accent)] flex items-center justify-center shadow-lg border border-white/20">
-            <span className="material-symbols-outlined text-[28px]">shield_with_heart</span>
+        <div className="relative hs-float-slow mb-4">
+          <div className="absolute -inset-3 rounded-[28px] bg-primary/25 blur-2xl" />
+          <div className="relative w-24 h-24 rounded-3xl overflow-hidden shadow-2xl ring-2 ring-primary/40 border border-white/15 bg-[#081412]">
+            <img
+              src="/logo-homesoc.jpg"
+              alt="HomeSOC"
+              className="w-full h-full object-cover scale-110"
+            />
           </div>
         </div>
-        <h1 className="text-2xl font-bold text-text-primary tracking-tight">
+        <h1 className="text-3xl font-bold text-text-primary tracking-tight">
           Home<span className="text-primary">SOC</span>
         </h1>
         <p className="text-text-muted text-xs sm:text-sm mt-1">
