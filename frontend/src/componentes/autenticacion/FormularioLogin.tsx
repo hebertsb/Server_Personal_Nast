@@ -6,6 +6,7 @@ import {
   autenticacionServicio,
   RespuestaPendiente2FA,
 } from '../../servicios/autenticacionServicio';
+import { biometriaServicio, biometriaSoportada } from '../../servicios/biometriaServicio';
 
 type ModoPortal = 'login' | 'registro' | 'recuperar' | 'setup';
 
@@ -255,6 +256,39 @@ export default function FormularioLogin() {
       localStorage.setItem('homesoc_ultimo_usuario', nombre.trim());
     } else {
       localStorage.removeItem('homesoc_ultimo_usuario');
+    }
+  };
+
+  const manejarAccesoBiometrico = async (tokenTemporal2FA?: string) => {
+    setMensajeError(null);
+    setMensajeExito(null);
+    setTextoCarga('ESPERANDO HUELLA DIGITAL / FACE ID...');
+    setCargando(true);
+    try {
+      const sesion = await biometriaServicio.autenticarConBiometria({
+        nombreUsuario: tokenTemporal2FA ? undefined : nombreUsuario,
+        tokenTemporal2FA,
+        recordarSesionDias: diasEfectivos,
+      });
+      if (sesion.usuario.nombreUsuario) {
+        guardarUsuarioSiRecuerda(sesion.usuario.nombreUsuario);
+      }
+      establecerSesionDirecta(sesion);
+      setCompuertaCerrada(true);
+      setMensajeCompuerta('BIOMETRÍA VERIFICADA — ACCESO CONCEDIDO');
+      window.setTimeout(() => navigate('/', { replace: true }), 420);
+    } catch (error) {
+      if (error instanceof ErrorApi) {
+        setMensajeError(error.message);
+      } else if (error instanceof DOMException && error.name === 'NotAllowedError') {
+        setMensajeError('Verificación biométrica cancelada o agotó el tiempo.');
+      } else if (error instanceof Error) {
+        setMensajeError(error.message);
+      } else {
+        setMensajeError('No se pudo completar el acceso biométrico');
+      }
+    } finally {
+      setCargando(false);
     }
   };
 
@@ -808,6 +842,18 @@ export default function FormularioLogin() {
                     <span>Desbloquear acceso</span>
                     <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                   </button>
+
+                  {biometriaSoportada() && (
+                    <button
+                      type="button"
+                      disabled={cargando}
+                      onClick={() => void manejarAccesoBiometrico()}
+                      className="w-full py-2.5 bg-surface-low hover:bg-surface-card-elevated border border-primary/35 text-primary font-semibold rounded-xl transition-all flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[19px]">fingerprint</span>
+                      <span>Ingresar con Huella / Face ID</span>
+                    </button>
+                  )}
                 </form>
               )}
 
@@ -899,6 +945,18 @@ export default function FormularioLogin() {
                     <span>Verificar y entrar</span>
                     <span className="material-symbols-outlined text-[18px]">verified_user</span>
                   </button>
+
+                  {biometriaSoportada() && (
+                    <button
+                      type="button"
+                      disabled={cargando}
+                      onClick={() => void manejarAccesoBiometrico(desafio2FA.tokenTemporal2FA)}
+                      className="w-full py-2.5 bg-surface-low hover:bg-surface-card-elevated border border-primary/35 text-primary font-semibold rounded-xl transition-all flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[19px]">fingerprint</span>
+                      <span>Verificar 2FA con Huella / Face ID</span>
+                    </button>
+                  )}
 
                   <div className="flex items-center justify-between text-xs pt-1">
                     <button

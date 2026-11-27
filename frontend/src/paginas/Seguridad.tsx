@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import ConfiguracionBiometria from '../componentes/seguridad/ConfiguracionBiometria';
 import ConfiguracionDosFactores from '../componentes/seguridad/ConfiguracionDosFactores';
 import TablaEventosSeguridad from '../componentes/seguridad/TablaEventosSeguridad';
 import { usarAutenticacion } from '../contexto/ContextoAutenticacion';
@@ -199,7 +200,12 @@ export default function Seguridad() {
           </div>
         </div>
 
-        {pestana === '2fa' && <ConfiguracionDosFactores />}
+        {pestana === '2fa' && (
+          <div className="space-y-6">
+            <ConfiguracionBiometria />
+            <ConfiguracionDosFactores />
+          </div>
+        )}
         {pestana === 'auditoria' && <TablaEventosSeguridad />}
         {pestana === 'intrusion' && (
           <div className="flex flex-col gap-5">

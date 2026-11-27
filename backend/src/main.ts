@@ -2,6 +2,7 @@ import { GestionarAccesosProyecto } from './aplicacion/accesos/GestionarAccesosP
 import { GestionarAutomatizaciones } from './aplicacion/automatizaciones/GestionarAutomatizaciones';
 import { Gestionar2FA } from './aplicacion/autenticacion/Gestionar2FA';
 import { GestionarAccesoYUsuarios } from './aplicacion/autenticacion/GestionarAccesoYUsuarios';
+import { GestionarBiometriaWebAuthn } from './aplicacion/autenticacion/GestionarBiometriaWebAuthn';
 import { IniciarSesion } from './aplicacion/autenticacion/IniciarSesion';
 import { RenovarSesion } from './aplicacion/autenticacion/RenovarSesion';
 import { ValidarSegundoFactor } from './aplicacion/autenticacion/ValidarSegundoFactor';
@@ -36,6 +37,7 @@ import {
 } from './infraestructura/postgres/conexion';
 import { RepositorioAccesosProyectoPostgres } from './infraestructura/postgres/RepositorioAccesosProyectoPostgres';
 import { RepositorioAuditoriaPostgres } from './infraestructura/postgres/RepositorioAuditoriaPostgres';
+import { RepositorioBiometriaPostgres } from './infraestructura/postgres/RepositorioBiometriaPostgres';
 import { RepositorioAutomatizacionesPostgres } from './infraestructura/postgres/RepositorioAutomatizacionesPostgres';
 import { RepositorioConexionGithubPostgres } from './infraestructura/postgres/RepositorioConexionGithubPostgres';
 import { RepositorioContenedoresPostgres } from './infraestructura/postgres/RepositorioContenedoresPostgres';
@@ -56,6 +58,7 @@ import { ColectorEnergiaHost } from './infraestructura/sistema/ColectorEnergiaHo
 import { ColectorRecursosHost } from './infraestructura/sistema/ColectorRecursosHost';
 import { AccesosProyectoController } from './presentacion/controladores/AccesosProyectoController';
 import { AuthController } from './presentacion/controladores/AuthController';
+import { BiometriaController } from './presentacion/controladores/BiometriaController';
 import { AutomatizacionesController } from './presentacion/controladores/AutomatizacionesController';
 import { ContenedoresController } from './presentacion/controladores/ContenedoresController';
 import { DesplieguesController } from './presentacion/controladores/DesplieguesController';
@@ -80,6 +83,7 @@ async function iniciarServidor(): Promise<void> {
 
   const pool = obtenerPoolPostgres(config.DATABASE_URL);
   const repositorioUsuarios = new RepositorioUsuariosPostgres(pool);
+  const repositorioBiometria = new RepositorioBiometriaPostgres(pool);
   const repositorioSeguridad2FA = new RepositorioSeguridad2FAPostgres(pool);
   const repositorioSeguridadRed = new RepositorioSeguridadRedPostgres(pool);
   const repositorioEventos = new RepositorioEventosPostgres(pool);
@@ -156,6 +160,13 @@ async function iniciarServidor(): Promise<void> {
     servicioHash,
     servicioCifrado,
     servicioTotp,
+    servicioTokens,
+  );
+  const casoUsoBiometria = new GestionarBiometriaWebAuthn(
+    repositorioBiometria,
+    repositorioUsuarios,
+    repositorioAuditoria,
+    repositorioSeguridad2FA,
     servicioTokens,
   );
 
@@ -252,6 +263,7 @@ async function iniciarServidor(): Promise<void> {
     casoUsoAccesoYUsuarios,
   );
   const usuariosController = new UsuariosController(casoUsoAccesoYUsuarios);
+  const biometriaController = new BiometriaController(casoUsoBiometria, esProduccion);
   const contenedoresController = new ContenedoresController(
     casoUsoListarContenedores,
     casoUsoControlarContenedor,
@@ -322,6 +334,7 @@ async function iniciarServidor(): Promise<void> {
     rutas: {
       authController,
       usuariosController,
+      biometriaController,
       contenedoresController,
       recursosController,
       seguridadController,

@@ -46,6 +46,12 @@ import {
   esquemaVerificar2FA,
 } from './dto/LoginDTO';
 import {
+  BiometriaController,
+  esquemaOpcionesLoginBiometrico,
+  esquemaVerificarLoginBiometrico,
+  esquemaVerificarRegistroBiometrico,
+} from './controladores/BiometriaController';
+import {
   esquemaActualizarPermisos,
   esquemaCambiarEstadoUsuario,
   esquemaCrearInvitacion,
@@ -60,6 +66,7 @@ import { validarCuerpo } from './middlewares/validacion.middleware';
 export interface DependenciasRutas {
   authController: AuthController;
   usuariosController?: UsuariosController;
+  biometriaController?: BiometriaController;
   contenedoresController: ContenedoresController;
   recursosController: RecursosController;
   seguridadController: SeguridadController;
@@ -144,6 +151,43 @@ export function crearRutas(deps: DependenciasRutas): Router {
   routerApiV1.post('/auth/refresh', deps.authController.renovarSesion);
   routerApiV1.post('/auth/logout', deps.authController.cerrarSesion);
   routerApiV1.get('/auth/perfil', deps.middlewareAutenticacion, deps.authController.obtenerPerfil);
+
+  // Autenticación y 2FA biométrico WebAuthn (Huella Digital / Face ID / Windows Hello)
+  if (deps.biometriaController) {
+    routerApiV1.get(
+      '/auth/biometria/credenciales',
+      deps.middlewareAutenticacion,
+      deps.biometriaController.listarCredenciales,
+    );
+    routerApiV1.post(
+      '/auth/biometria/registrar/opciones',
+      deps.middlewareAutenticacion,
+      deps.biometriaController.opcionesRegistro,
+    );
+    routerApiV1.post(
+      '/auth/biometria/registrar/verificar',
+      deps.middlewareAutenticacion,
+      validarCuerpo(esquemaVerificarRegistroBiometrico),
+      deps.biometriaController.verificarRegistro,
+    );
+    routerApiV1.delete(
+      '/auth/biometria/credenciales/:id',
+      deps.middlewareAutenticacion,
+      deps.biometriaController.revocarCredencial,
+    );
+    routerApiV1.post(
+      '/auth/biometria/login/opciones',
+      deps.limitadorLogin,
+      validarCuerpo(esquemaOpcionesLoginBiometrico),
+      deps.biometriaController.opcionesLogin,
+    );
+    routerApiV1.post(
+      '/auth/biometria/login/verificar',
+      deps.limitadorLogin,
+      validarCuerpo(esquemaVerificarLoginBiometrico),
+      deps.biometriaController.verificarLogin,
+    );
+  }
 
   // Módulo de contenedores Docker (RF-05 a RF-08)
   routerApiV1.get(
