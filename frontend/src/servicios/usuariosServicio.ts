@@ -72,4 +72,22 @@ export const usuariosServicio = {
       {},
       tokenAcceso,
     ),
+
+  obtenerConfigEditor: (
+    tokenAcceso: string,
+  ): Promise<{ editor: { url: string; rutaBase: string } }> =>
+    apiCliente.get<{ editor: { url: string; rutaBase: string } }>(
+      '/configuracion/editor',
+      tokenAcceso,
+    ),
+
+  guardarConfigEditor: (
+    datos: { url: string; rutaBase: string },
+    tokenAcceso: string,
+  ): Promise<{ editor: { url: string; rutaBase: string } }> =>
+    apiCliente.put<{ editor: { url: string; rutaBase: string } }>(
+      '/configuracion/editor',
+      datos,
+      tokenAcceso,
+    ),
 };

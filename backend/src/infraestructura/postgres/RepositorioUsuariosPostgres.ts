@@ -281,4 +281,25 @@ export class RepositorioUsuariosPostgres implements RepositorioUsuarios {
     );
     return (resultado.rowCount ?? 0) > 0;
   }
+
+  public async obtenerPreferencia(clave: string): Promise<Record<string, unknown> | null> {
+    const resultado = await this.pool.query<{ valor: Record<string, unknown> }>(
+      `SELECT valor FROM preferencias_sistema WHERE clave = $1 LIMIT 1`,
+      [clave],
+    );
+    return resultado.rows[0]?.valor ?? null;
+  }
+
+  public async guardarPreferencia(
+    clave: string,
+    valor: Record<string, unknown>,
+  ): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO preferencias_sistema (clave, valor, actualizado_en)
+       VALUES ($1, $2::jsonb, NOW())
+       ON CONFLICT (clave)
+       DO UPDATE SET valor = EXCLUDED.valor, actualizado_en = NOW()`,
+      [clave, JSON.stringify(valor)],
+    );
+  }
 }

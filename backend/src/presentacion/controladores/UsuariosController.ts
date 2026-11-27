@@ -23,6 +23,17 @@ export const esquemaCambiarEstadoUsuario = z.object({
   activo: z.boolean(),
 });
 
+export const esquemaConfigEditor = z.object({
+  url: z
+    .string()
+    .trim()
+    .max(300)
+    .refine((v) => v === '' || /^https?:\/\//i.test(v), {
+      message: 'La URL debe comenzar con http:// o https://',
+    }),
+  rutaBase: z.string().trim().min(1).max(200).default('/home/coder/project'),
+});
+
 /** Controlador HTTP para la gestión de usuarios, roles, permisos e invitaciones (Superadmin). */
 export class UsuariosController {
   constructor(private readonly casoUso: GestionarAccesoYUsuarios) {}
@@ -177,6 +188,42 @@ export class UsuariosController {
         direccionIp,
       });
       res.status(200).json(resultado);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public obtenerConfigEditor = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const editor = await this.casoUso.obtenerConfigEditor();
+      res.status(200).json({ editor });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public guardarConfigEditor = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const usuario = req.usuarioAutenticado;
+      if (!usuario) throw new ErrorTokenInvalido();
+      const datos = req.body as z.infer<typeof esquemaConfigEditor>;
+      const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
+      const editor = await this.casoUso.guardarConfigEditor({
+        url: datos.url,
+        rutaBase: datos.rutaBase,
+        actorId: usuario.sub,
+        rol: usuario.rol,
+        direccionIp,
+      });
+      res.status(200).json({ editor });
     } catch (error) {
       next(error);
     }

@@ -54,6 +54,7 @@ import {
 import {
   esquemaActualizarPermisos,
   esquemaCambiarEstadoUsuario,
+  esquemaConfigEditor,
   esquemaCrearInvitacion,
   UsuariosController,
 } from './controladores/UsuariosController';
@@ -563,6 +564,17 @@ export function crearRutas(deps: DependenciasRutas): Router {
       deps.middlewareAutenticacion,
       requerirSuperadmin,
       deps.usuariosController.revocarInvitacion,
+    );
+    routerApiV1.get(
+      '/configuracion/editor',
+      deps.middlewareAutenticacion,
+      deps.usuariosController.obtenerConfigEditor,
+    );
+    routerApiV1.put(
+      '/configuracion/editor',
+      deps.middlewareAutenticacion,
+      validarCuerpo(esquemaConfigEditor),
+      deps.usuariosController.guardarConfigEditor,
     );
   }
 

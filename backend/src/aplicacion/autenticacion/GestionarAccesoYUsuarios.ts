@@ -462,4 +462,43 @@ export class GestionarAccesoYUsuarios {
     });
     return { mensaje: `Sesiones de ${usuario.nombreUsuario} revocadas correctamente` };
   }
+
+  public async obtenerConfigEditor(): Promise<{ url: string; rutaBase: string }> {
+    if (!this.repositorioUsuarios.obtenerPreferencia) {
+      return { url: '', rutaBase: '/home/coder/project' };
+    }
+    const pref = await this.repositorioUsuarios.obtenerPreferencia('editor_vscode');
+    return {
+      url: typeof pref?.url === 'string' ? pref.url : '',
+      rutaBase: typeof pref?.rutaBase === 'string' && pref.rutaBase ? pref.rutaBase : '/home/coder/project',
+    };
+  }
+
+  public async guardarConfigEditor(entrada: {
+    url: string;
+    rutaBase: string;
+    actorId: string;
+    rol: RolUsuario;
+    direccionIp: string;
+  }): Promise<{ url: string; rutaBase: string }> {
+    if (entrada.rol !== 'superadmin' && entrada.rol !== 'administrador') {
+      throw new ErrorPermisoDenegado('Solo administradores pueden modificar el enlace del editor');
+    }
+    const valor = {
+      url: entrada.url.trim(),
+      rutaBase: entrada.rutaBase.trim() || '/home/coder/project',
+    };
+    if (this.repositorioUsuarios.guardarPreferencia) {
+      await this.repositorioUsuarios.guardarPreferencia('editor_vscode', valor);
+    }
+    await this.repositorioAuditoria.registrar({
+      usuarioId: entrada.actorId,
+      accion: 'actualizar_config_editor',
+      recurso: 'preferencias_sistema:editor_vscode',
+      origen: 'web',
+      direccionIp: entrada.direccionIp,
+      detalles: valor,
+    });
+    return valor;
+  }
 }

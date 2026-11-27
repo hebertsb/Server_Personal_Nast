@@ -13,6 +13,7 @@ import {
   VariableEntornoItem,
 } from '../../servicios/githubServicio';
 import { ExplicacionFalloItem, iaMcpServicio } from '../../servicios/iaMcpServicio';
+import { usuariosServicio } from '../../servicios/usuariosServicio';
 
 function formatearFechaCorta(iso: string): string {
   if (!iso) return '—';
@@ -81,20 +82,18 @@ export default function PanelDesplieguesGithub() {
   const [ejecutandoPolling, setEjecutandoPolling] = useState(false);
   const [explicacionesIa, setExplicacionesIa] = useState<Record<string, ExplicacionFalloItem>>({});
   const [explicandoId, setExplicandoId] = useState<string | null>(null);
+  const [urlEditorSync, setUrlEditorSync] = useState<string>(
+    () => localStorage.getItem('homesoc_codeserver_url') || '',
+  );
+  const [rutaEditorSync, setRutaEditorSync] = useState<string>(
+    () => localStorage.getItem('homesoc_codeserver_ruta') || '/home/coder/project',
+  );
 
   const construirUrlCodeServer = (nombreProyecto: string): string | null => {
-    try {
-      const base = (localStorage.getItem('homesoc_codeserver_url') || '').trim().replace(/\/+$/, '');
-      if (!base) return null;
-      const carpetaBase = (
-        localStorage.getItem('homesoc_codeserver_ruta') || '/home/coder/project'
-      )
-        .trim()
-        .replace(/\/+$/, '');
-      return `${base}/?folder=${encodeURIComponent(`${carpetaBase}/${nombreProyecto}`)}`;
-    } catch {
-      return null;
-    }
+    const base = urlEditorSync.trim().replace(/\/+$/, '');
+    if (!base) return null;
+    const carpetaBase = (rutaEditorSync || '/home/coder/project').trim().replace(/\/+$/, '');
+    return `${base}/?folder=${encodeURIComponent(`${carpetaBase}/${nombreProyecto}`)}`;
   };
 
   const manejarExplicarConIa = async (proyectoId: string, despliegueId: string) => {
@@ -123,11 +122,21 @@ export default function PanelDesplieguesGithub() {
     if (!tokenAcceso) return;
     setCargando(true);
     try {
-      const [{ conexion: estado, oauthHabilitado: oauthOk }, { proyectos: listaProyectos }] =
-        await Promise.all([
-          githubServicio.obtenerEstado(tokenAcceso),
-          githubServicio.listarProyectos(tokenAcceso),
-        ]);
+      const [
+        { conexion: estado, oauthHabilitado: oauthOk },
+        { proyectos: listaProyectos },
+        resEditor,
+      ] = await Promise.all([
+        githubServicio.obtenerEstado(tokenAcceso),
+        githubServicio.listarProyectos(tokenAcceso),
+        usuariosServicio.obtenerConfigEditor(tokenAcceso).catch(() => null),
+      ]);
+      if (resEditor?.editor) {
+        setUrlEditorSync(resEditor.editor.url);
+        setRutaEditorSync(resEditor.editor.rutaBase);
+        localStorage.setItem('homesoc_codeserver_url', resEditor.editor.url);
+        localStorage.setItem('homesoc_codeserver_ruta', resEditor.editor.rutaBase);
+      }
       setConexion(estado);
       setOauthHabilitado(Boolean(oauthOk));
       setProyectos(listaProyectos);

@@ -11,6 +11,7 @@ import {
   ConfiguracionNotificacionItem,
   seguridadServicio,
 } from '../servicios/seguridadServicio';
+import { usuariosServicio } from '../servicios/usuariosServicio';
 
 interface EstadoSaludSistema {
   estado: string;
@@ -79,7 +80,7 @@ export default function ConfiguracionGeneral() {
     if (!tokenAcceso) return;
     setCargando(true);
     try {
-      const [resSalud, res2FA, resGh, resNotifs, resMcp] = await Promise.all([
+      const [resSalud, res2FA, resGh, resNotifs, resMcp, resEditor] = await Promise.all([
         fetch('/health')
           .then((r) => (r.ok ? (r.json() as Promise<EstadoSaludSistema>) : null))
           .catch(() => null),
@@ -87,6 +88,7 @@ export default function ConfiguracionGeneral() {
         githubServicio.obtenerEstado(tokenAcceso),
         seguridadServicio.listarAlertasNotificaciones(tokenAcceso),
         iaMcpServicio.listarTokensMcp(tokenAcceso).catch(() => ({ tokens: [] })),
+        usuariosServicio.obtenerConfigEditor(tokenAcceso).catch(() => null),
       ]);
 
       setSalud(resSalud);
@@ -95,6 +97,12 @@ export default function ConfiguracionGeneral() {
       setConfigNotifs(resNotifs.configuraciones ?? []);
       setAlertas(resNotifs.alertas ?? []);
       setTokensMcp(resMcp.tokens ?? []);
+      if (resEditor?.editor) {
+        setUrlCodeServer(resEditor.editor.url);
+        setRutaCodeServer(resEditor.editor.rutaBase);
+        localStorage.setItem('homesoc_codeserver_url', resEditor.editor.url);
+        localStorage.setItem('homesoc_codeserver_ruta', resEditor.editor.rutaBase);
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof ErrorApi ? err.message : 'No se pudo cargar la configuración');
@@ -632,8 +640,9 @@ export default function ConfiguracionGeneral() {
             />
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 const limpia = urlCodeServer.trim();
+                const rutaLimpia = rutaCodeServer.trim() || '/home/coder/project';
                 if (limpia && !/^https?:\/\//i.test(limpia)) {
                   setError(
                     'La dirección de VS Code Web debe ser una URL web (ej. https://100.99.124.109:8443), no un comando ssh.',
@@ -641,9 +650,23 @@ export default function ConfiguracionGeneral() {
                   return;
                 }
                 setError(null);
-                localStorage.setItem('homesoc_codeserver_url', limpia);
-                localStorage.setItem('homesoc_codeserver_ruta', rutaCodeServer.trim());
-                setAviso('Enlace de VS Code Web guardado correctamente');
+                try {
+                  if (tokenAcceso) {
+                    await usuariosServicio.guardarConfigEditor(
+                      { url: limpia, rutaBase: rutaLimpia },
+                      tokenAcceso,
+                    );
+                  }
+                  localStorage.setItem('homesoc_codeserver_url', limpia);
+                  localStorage.setItem('homesoc_codeserver_ruta', rutaLimpia);
+                  setAviso('Enlace de VS Code Web guardado y sincronizado en todos tus dispositivos');
+                } catch (err) {
+                  setError(
+                    err instanceof ErrorApi
+                      ? err.message
+                      : 'No se pudo guardar la configuración del editor',
+                  );
+                }
               }}
               className="px-4 py-2 rounded-xl bg-primary text-[var(--hs-on-accent)] text-xs font-semibold cursor-pointer"
             >

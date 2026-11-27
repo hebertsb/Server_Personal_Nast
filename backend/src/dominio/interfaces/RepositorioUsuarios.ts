@@ -45,4 +45,6 @@ export interface RepositorioUsuarios {
   buscarInvitacionPorHash?(tokenHash: string): Promise<InvitacionUsuario | null>;
   marcarInvitacionUsada?(id: string, usadoPorId: string): Promise<void>;
   revocarInvitacion?(id: string): Promise<boolean>;
+  obtenerPreferencia?(clave: string): Promise<Record<string, unknown> | null>;
+  guardarPreferencia?(clave: string, valor: Record<string, unknown>): Promise<void>;
 }
