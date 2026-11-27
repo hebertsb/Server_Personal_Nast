@@ -10,7 +10,7 @@ interface PropiedadesSelectorTema {
  * Se utiliza tanto en la barra superior del dashboard como en la pantalla de login.
  */
 export default function SelectorTema({ alineacion = 'derecha' }: PropiedadesSelectorTema) {
-  const { tema, acento, esOscuro, establecerTema, alternarTema, establecerAcento } = usarTema();
+  const { tema, acento, esOscuro, establecerTema, establecerAcento } = usarTema();
   const [abierto, setAbierto] = useState(false);
   const contenedorRef = useRef<HTMLDivElement>(null);
 
@@ -30,24 +30,12 @@ export default function SelectorTema({ alineacion = 'derecha' }: PropiedadesSele
   const colorActual = esOscuro ? paletaActual.colorNoche : paletaActual.colorDia;
 
   return (
-    <div ref={contenedorRef} className="relative flex items-center gap-1.5">
-      <button
-        type="button"
-        onClick={alternarTema}
-        className="h-9 w-9 rounded-xl bg-surface-card hover:bg-surface-card-elevated border border-border-hairline text-text-muted hover:text-text-primary transition-all flex items-center justify-center cursor-pointer"
-        title={esOscuro ? 'Cambiar a Modo Día' : 'Cambiar a Modo Noche'}
-        aria-label={esOscuro ? 'Cambiar a Modo Día' : 'Cambiar a Modo Noche'}
-      >
-        <span className="material-symbols-outlined text-[18px]">
-          {esOscuro ? 'light_mode' : 'dark_mode'}
-        </span>
-      </button>
-
+    <div ref={contenedorRef} className="relative flex items-center">
       <button
         type="button"
         onClick={() => setAbierto((prev) => !prev)}
-        className="h-9 px-2.5 rounded-xl bg-surface-card hover:bg-surface-card-elevated border border-border-hairline text-text-primary transition-all flex items-center gap-2 cursor-pointer"
-        title="Personalizar tonalidad"
+        className="h-9 px-3 rounded-xl bg-surface-card hover:bg-surface-card-elevated border border-border-hairline text-text-primary transition-all flex items-center gap-2 cursor-pointer"
+        title="Apariencia y tonalidad"
         aria-expanded={abierto}
       >
         <span

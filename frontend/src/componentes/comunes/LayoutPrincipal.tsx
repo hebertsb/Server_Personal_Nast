@@ -1,7 +1,6 @@
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { usarAutenticacion } from '../../contexto/ContextoAutenticacion';
-import { PALETAS_ACENTO, usarTema } from '../../contexto/ContextoTema';
 import { apiCliente } from '../../servicios/apiCliente';
 import { ModuloSistema } from '../../servicios/autenticacionServicio';
 import { contenedoresServicio } from '../../servicios/contenedoresServicio';
@@ -96,7 +95,6 @@ export default function LayoutPrincipal({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { usuario, tokenAcceso, cerrarSesion, tienePermisoModulo } = usarAutenticacion();
-  const { acento, esOscuro, alternarTema, establecerAcento } = usarTema();
 
   const [sidebarAbierto, setSidebarAbierto] = useState(true);
   const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
@@ -462,83 +460,8 @@ export default function LayoutPrincipal({ children }: { children: ReactNode }) {
         )}
       </nav>
 
-      {/* Pie del sidebar: tonalidades + switch Día/Noche + usuario */}
+      {/* Pie del sidebar: perfil de usuario */}
       <div className={`border-t border-border-hairline flex flex-col gap-2.5 ${expandido ? 'p-3' : 'p-2 items-center'}`}>
-        {expandido && (
-          <div className="flex items-center justify-between px-2 py-1.5 rounded-xl bg-surface-low border border-border-hairline">
-            <span className="text-[11px] font-medium text-text-muted">Tonalidad</span>
-            <div className="flex items-center gap-1.5">
-              {PALETAS_ACENTO.map((paleta) => {
-                const seleccionado = paleta.id === acento;
-                const color = esOscuro ? paleta.colorNoche : paleta.colorDia;
-                return (
-                  <button
-                    key={paleta.id}
-                    type="button"
-                    onClick={() => establecerAcento(paleta.id)}
-                    title={paleta.nombre}
-                    aria-label={`Tonalidad ${paleta.nombre}`}
-                    className={`w-4 h-4 rounded-full transition-transform cursor-pointer ${
-                      seleccionado
-                        ? 'scale-110 ring-2 ring-offset-2 ring-offset-surface-low ring-text-primary/50'
-                        : 'opacity-70 hover:opacity-100 hover:scale-105'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Interruptor rápido Día / Noche */}
-        {expandido ? (
-          <button
-            type="button"
-            onClick={alternarTema}
-            className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl bg-surface-low hover:bg-surface-card-elevated border border-border-hairline transition-all cursor-pointer"
-          >
-            <span className="flex items-center gap-2 text-xs font-medium text-text-primary">
-              <span className="material-symbols-outlined text-[17px] text-primary">
-                {esOscuro ? 'dark_mode' : 'light_mode'}
-              </span>
-              {esOscuro ? 'Modo Noche' : 'Modo Día'}
-            </span>
-            <span
-              className={`w-9 h-5 rounded-full p-0.5 transition-colors flex items-center ${
-                esOscuro ? 'bg-primary justify-end' : 'bg-surface-container-highest justify-start'
-              }`}
-            >
-              <span className="w-4 h-4 rounded-full bg-white shadow-sm" />
-            </span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={alternarTema}
-            onMouseEnter={(e) =>
-              mostrarTooltip(e.currentTarget, {
-                titulo: esOscuro ? 'Cambiar a Modo Día' : 'Cambiar a Modo Noche',
-                descripcion: 'Alterna entre vista clara y oscura',
-              })
-            }
-            onMouseLeave={ocultarTooltip}
-            onFocus={(e) =>
-              mostrarTooltip(e.currentTarget, {
-                titulo: esOscuro ? 'Cambiar a Modo Día' : 'Cambiar a Modo Noche',
-                descripcion: 'Alterna entre vista clara y oscura',
-              })
-            }
-            onBlur={ocultarTooltip}
-            aria-label={esOscuro ? 'Cambiar a Modo Día' : 'Cambiar a Modo Noche'}
-            className="w-10 h-10 rounded-xl bg-surface-low hover:bg-surface-card-elevated border border-border-hairline text-primary flex items-center justify-center transition-all cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              {esOscuro ? 'light_mode' : 'dark_mode'}
-            </span>
-          </button>
-        )}
-
         {/* Perfil de usuario */}
         <div
           onMouseEnter={(e) =>
