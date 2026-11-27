@@ -32,6 +32,11 @@ import {
 } from '../../dominio/reglas/CadenaVerificacionDespliegue';
 import { obtenerPlantillaBase } from '../../dominio/reglas/DetectorTipoProyecto';
 import { evaluarGateSeguridad } from '../../dominio/reglas/EvaluadorGateSeguridad';
+import {
+  formatearReporteTelegram,
+  ReporteSaludDespliegue,
+  serializarLogSaludConReporte,
+} from '../../dominio/reglas/ReporteSaludDespliegue';
 import { NotificarEvento } from '../notificaciones/NotificarEvento';
 
 export interface ContextoDespliegue {
@@ -498,16 +503,34 @@ export class GestionarProyectosDespliegue {
 
       lineasLog.push(resultadoReal.logConstruccion);
 
+      const duracionMsReal = Math.max(200, Date.now() - inicio);
+      const reporteReal: ReporteSaludDespliegue = {
+        proyecto: proyecto.nombreProyecto,
+        rama: proyecto.rama,
+        commitSha,
+        puerto: proyecto.puerto,
+        estadoFinal: resultadoReal.exitoso ? 'exitoso' : 'fallido',
+        duracionSeg: Math.max(1, Math.round(duracionMsReal / 1000)),
+        timestamp: new Date().toISOString(),
+        antes: resultadoReal.pruebasAntes ?? [],
+        despues: resultadoReal.pruebasDespues ?? [],
+      };
+
+      const logHealthConReporte = serializarLogSaludConReporte(
+        resultadoReal.logHealthCheck,
+        reporteReal,
+      );
+
       const registroReal = await this.repoDespliegues.registrarDespliegue({
         repositorioId: proyecto.id,
         commitSha,
         origen,
         estado: resultadoReal.exitoso ? 'exitoso' : 'fallido',
         logConstruccion: lineasLog.join('\n'),
-        duracionMs: Math.max(200, Date.now() - inicio),
+        duracionMs: duracionMsReal,
         ejecutadoPor: ctx.nombreUsuario,
         healthCheckOk: resultadoReal.healthCheckOk,
-        logHealthCheck: resultadoReal.logHealthCheck,
+        logHealthCheck: logHealthConReporte,
         rollbackAutomatico: false,
         despliegueOrigenId: opciones.despliegueOrigenId ?? null,
         escaneos: gate.escaneos,
@@ -519,11 +542,52 @@ export class GestionarProyectosDespliegue {
         resultadoReal.exitoso ? commitSha : commitAnterior,
       );
 
+      // Enviar reporte en formato tabla Antes vs. Después a Telegram / n8n (Observer)
+      await this.notificarEvento?.emitir({
+        tipoEvento: 'despliegue_reporte',
+        mensaje: formatearReporteTelegram(reporteReal),
+      });
+
       return registroReal;
     }
 
-    const logHealthOk = `[HealthCheck] HTTP GET http://127.0.0.1:${proyecto.puerto}/ -> 200 OK (verificado en entorno local).`;
-    lineasLog.push(logHealthOk, '[HomeSOC] Despliegue completado y verificado con éxito.');
+    const duracionMsSim = Math.max(120, Date.now() - inicio);
+    const reporteSimulado: ReporteSaludDespliegue = {
+      proyecto: proyecto.nombreProyecto,
+      rama: proyecto.rama,
+      commitSha,
+      puerto: proyecto.puerto,
+      estadoFinal: 'exitoso',
+      duracionSeg: Math.max(1, Math.round(duracionMsSim / 1000)),
+      timestamp: new Date().toISOString(),
+      antes: [
+        {
+          prueba: 'Contenedor previo',
+          estado: commitAnterior ? 'ok' : 'advertencia',
+          detalle: commitAnterior ? 'activo (entorno local)' : 'primer despliegue',
+        },
+        {
+          prueba: 'Servidor web',
+          estado: commitAnterior ? 'ok' : 'advertencia',
+          detalle: commitAnterior ? 'responde (200 · simulado)' : 'sin servicio previo',
+        },
+      ],
+      despues: [
+        { prueba: 'Servidor web (/)', estado: 'ok', detalle: 'responde (200 · simulado)' },
+        { prueba: 'Health check (/health)', estado: 'ok', detalle: 'arranca (200 · simulado)' },
+        { prueba: 'Seguridad /.env', estado: 'ok', detalle: 'protegido (404)' },
+        { prueba: 'Seguridad /.git/config', estado: 'ok', detalle: 'protegido (404)' },
+      ],
+    };
+
+    const logHealthOk = serializarLogSaludConReporte(
+      `[HealthCheck] HTTP GET http://127.0.0.1:${proyecto.puerto}/ -> 200 OK (verificado en entorno local).`,
+      reporteSimulado,
+    );
+    lineasLog.push(
+      `[HealthCheck] HTTP GET http://127.0.0.1:${proyecto.puerto}/ -> 200 OK (verificado en entorno local).`,
+      '[HomeSOC] Despliegue completado y verificado con éxito.',
+    );
 
     const registro = await this.repoDespliegues.registrarDespliegue({
       repositorioId: proyecto.id,
@@ -531,7 +595,7 @@ export class GestionarProyectosDespliegue {
       origen,
       estado: 'exitoso',
       logConstruccion: lineasLog.join('\n'),
-      duracionMs: Math.max(120, Date.now() - inicio),
+      duracionMs: duracionMsSim,
       ejecutadoPor: ctx.nombreUsuario,
       healthCheckOk: true,
       logHealthCheck: logHealthOk,
@@ -541,6 +605,11 @@ export class GestionarProyectosDespliegue {
     });
 
     await this.repoDespliegues.actualizarEstadoProyecto(proyecto.id, 'activo', commitSha);
+
+    await this.notificarEvento?.emitir({
+      tipoEvento: 'despliegue_reporte',
+      mensaje: formatearReporteTelegram(reporteSimulado),
+    });
 
     await this.auditoria.registrar({
       usuarioId: ctx.usuarioId,

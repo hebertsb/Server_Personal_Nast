@@ -39,6 +39,7 @@ const ETIQUETAS_EVENTO: Record<string, string> = {
   aviso_actualizaciones: 'Aviso de actualizaciones pendientes',
   gate_seguridad_bloqueado: 'Gate de seguridad bloqueó despliegue',
   despliegue_rollback_automatico: 'Rollback automático por fallo de health check',
+  despliegue_reporte: 'Reporte de despliegue (Salud Antes vs. Después)',
 };
 
 export default function ConfiguracionGeneral() {

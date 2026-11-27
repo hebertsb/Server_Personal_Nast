@@ -49,9 +49,16 @@ export class NotificarEvento {
     const configuraciones =
       await this.repositorioSeguridadRed.listarConfiguracionNotificaciones();
 
-    const activas = configuraciones.filter(
+    let activas = configuraciones.filter(
       (c) => c.tipoEvento === evento.tipoEvento && c.habilitado,
     );
+
+    // Si es un reporte de despliegue y aún no existe regla explícita, hereda los canales activos de rollback
+    if (activas.length === 0 && evento.tipoEvento === 'despliegue_reporte') {
+      activas = configuraciones.filter(
+        (c) => c.tipoEvento === 'despliegue_rollback_automatico' && c.habilitado,
+      );
+    }
 
     const alertasRegistradas: AlertaEnviada[] = [];
 

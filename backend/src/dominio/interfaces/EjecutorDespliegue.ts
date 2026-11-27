@@ -1,4 +1,5 @@
 import { TipoProyectoDespliegue } from '../entidades/Despliegue';
+import { PruebaSaludDespliegue } from '../reglas/ReporteSaludDespliegue';
 
 export interface EntradaEjecucionDespliegue {
   nombreProyecto: string;
@@ -18,6 +19,8 @@ export interface ResultadoEjecucionDespliegue {
   logConstruccion: string;
   logHealthCheck: string;
   nombreContenedor: string;
+  pruebasAntes?: PruebaSaludDespliegue[];
+  pruebasDespues?: PruebaSaludDespliegue[];
 }
 
 export interface EjecutorDespliegue {

@@ -8,6 +8,7 @@ import {
   EntradaEjecucionDespliegue,
   ResultadoEjecucionDespliegue,
 } from '../../dominio/interfaces/EjecutorDespliegue';
+import { VerificadorSaludDespliegue } from './VerificadorSaludDespliegue';
 
 const execFileAsync = promisify(execFile);
 
@@ -34,6 +35,7 @@ function redactarSecretos(texto: string, secretos: string[]): string {
  */
 export class EjecutorDespliegueDocker implements EjecutorDespliegue {
   public readonly modo = 'real' as const;
+  private readonly verificadorSalud = new VerificadorSaludDespliegue();
 
   public async ejecutar(
     entrada: EntradaEjecucionDespliegue,
@@ -43,6 +45,12 @@ export class EjecutorDespliegueDocker implements EjecutorDespliegue {
     const dirTrabajo = await fs.mkdtemp(path.join(os.tmpdir(), 'homesoc-deploy-'));
     const secretosARedactar = [entrada.tokenGithub, ...Object.values(entrada.variablesEntorno)];
     const logs: string[] = [];
+
+    // Sonda ANTES del despliegue (comparativa de salud previa)
+    const pruebasAntes = await this.verificadorSalud.verificarAntes(
+      entrada.puerto,
+      nombreContenedor,
+    );
 
     try {
       logs.push(`[HomeSOC] Clonando ${entrada.nombreCompleto} (rama ${entrada.rama})…`);
@@ -130,6 +138,12 @@ export class EjecutorDespliegueDocker implements EjecutorDespliegue {
       );
       const corriendo = inspectRes.stdout.trim() === 'true';
 
+      const pruebasDespues = await this.verificadorSalud.verificarDespues(
+        entrada.puerto,
+        nombreContenedor,
+        corriendo,
+      );
+
       if (!corriendo) {
         const logsContenedor = await execFileAsync(
           'docker',
@@ -144,15 +158,22 @@ export class EjecutorDespliegueDocker implements EjecutorDespliegue {
           nombreContenedor,
           logConstruccion: redactarSecretos(logs.join('\n'), secretosARedactar),
           logHealthCheck: `Contenedor ${nombreContenedor} detenido inesperadamente tras el arranque.`,
+          pruebasAntes,
+          pruebasDespues,
         };
       }
 
+      const fallaCritica = pruebasDespues.some((p) => p.estado === 'error');
       return {
         exitoso: true,
-        healthCheckOk: true,
+        healthCheckOk: !fallaCritica,
         nombreContenedor,
         logConstruccion: redactarSecretos(logs.join('\n'), secretosARedactar),
-        logHealthCheck: `Contenedor ${nombreContenedor} activo y respondiendo en puerto ${entrada.puerto}.`,
+        logHealthCheck: fallaCritica
+          ? `Contenedor ${nombreContenedor} activo en puerto ${entrada.puerto}, pero se detectaron fallos en las pruebas post-despliegue.`
+          : `Contenedor ${nombreContenedor} activo y verificado en puerto ${entrada.puerto}.`,
+        pruebasAntes,
+        pruebasDespues,
       };
     } catch (error) {
       const detalle =

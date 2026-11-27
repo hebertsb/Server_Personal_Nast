@@ -40,6 +40,39 @@ function etiquetaTipoProyecto(tipo: TipoProyectoDespliegue): string {
   }
 }
 
+interface PruebaSaludDespliegueUi {
+  prueba: string;
+  estado: 'ok' | 'advertencia' | 'error';
+  detalle: string;
+}
+
+interface ReporteSaludDespliegueUi {
+  proyecto: string;
+  rama: string;
+  commitSha: string;
+  puerto: number;
+  estadoFinal: 'exitoso' | 'fallido' | 'revertido';
+  duracionSeg: number;
+  timestamp: string;
+  antes: PruebaSaludDespliegueUi[];
+  despues: PruebaSaludDespliegueUi[];
+}
+
+function extraerReporteSalud(logHealthCheck?: string | null): ReporteSaludDespliegueUi | null {
+  if (!logHealthCheck) return null;
+  const inicio = logHealthCheck.indexOf('<!--HOMESOC_REPORTE_JSON:');
+  if (inicio === -1) return null;
+  const fin = logHealthCheck.indexOf('-->', inicio);
+  if (fin === -1) return null;
+  try {
+    return JSON.parse(
+      logHealthCheck.slice(inicio + '<!--HOMESOC_REPORTE_JSON:'.length, fin),
+    ) as ReporteSaludDespliegueUi;
+  } catch {
+    return null;
+  }
+}
+
 export default function PanelDesplieguesGithub() {
   const { tokenAcceso, usuario } = usarAutenticacion();
   const [conexion, setConexion] = useState<ConexionGithubItem | null>(null);
@@ -1289,6 +1322,68 @@ export default function PanelDesplieguesGithub() {
                                     ))}
                                   </div>
                                 )}
+
+                                {/* Reporte de Salud Antes vs. Después */}
+                                {(() => {
+                                  const reporte = extraerReporteSalud(d.logHealthCheck);
+                                  if (!reporte) return null;
+                                  const renderTabla = (
+                                    titulo: string,
+                                    filas: PruebaSaludDespliegueUi[],
+                                  ) => (
+                                    <div className="rounded-lg border border-border-hairline bg-surface-low overflow-hidden">
+                                      <div className="px-3 py-1.5 bg-surface-card-elevated/60 border-b border-border-hairline text-[11px] font-semibold text-text-primary">
+                                        {titulo}
+                                      </div>
+                                      <table className="w-full text-left text-[11px]">
+                                        <thead>
+                                          <tr className="border-b border-border-hairline text-text-dim font-mono">
+                                            <th className="px-3 py-1.5">Prueba</th>
+                                            <th className="px-2 py-1.5">Estado</th>
+                                            <th className="px-3 py-1.5">Detalle</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border-hairline/60">
+                                          {filas.map((f, idx) => (
+                                            <tr key={idx}>
+                                              <td className="px-3 py-1.5 font-medium text-text-primary">
+                                                {f.prueba}
+                                              </td>
+                                              <td className="px-2 py-1.5">
+                                                <span
+                                                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold ${
+                                                    f.estado === 'ok'
+                                                      ? 'bg-primary/15 text-primary'
+                                                      : f.estado === 'advertencia'
+                                                        ? 'bg-status-warning/15 text-status-warning'
+                                                        : 'bg-error-container text-status-critical'
+                                                  }`}
+                                                >
+                                                  {f.estado === 'ok'
+                                                    ? 'OK'
+                                                    : f.estado === 'advertencia'
+                                                      ? 'AVISO'
+                                                      : 'ERROR'}
+                                                </span>
+                                              </td>
+                                              <td className="px-3 py-1.5 font-mono text-text-muted">
+                                                {f.detalle}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  );
+                                  return (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                      {reporte.antes.length > 0 &&
+                                        renderTabla('Salud del servidor (ANTES)', reporte.antes)}
+                                      {reporte.despues.length > 0 &&
+                                        renderTabla('Salud del servidor (DESPUÉS)', reporte.despues)}
+                                    </div>
+                                  );
+                                })()}
 
                                 <pre className="p-2.5 rounded-lg bg-surface-low text-[11px] font-mono text-text-muted overflow-x-auto whitespace-pre-wrap">
                                   {d.logConstruccion}
