@@ -73,7 +73,7 @@ export default function ConfiguracionGeneral() {
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
-  const esAdmin = usuario?.rol === 'administrador';
+  const esAdmin = usuario?.rol === 'superadmin' || usuario?.rol === 'administrador';
 
   const cargarTodo = useCallback(async () => {
     if (!tokenAcceso) return;
@@ -543,13 +543,29 @@ export default function ConfiguracionGeneral() {
           )}
 
           {tokenMcpRecienCreado && (
-            <div className="p-3.5 rounded-xl bg-primary/12 border border-primary/30 text-xs flex flex-col gap-1.5">
-              <span className="font-semibold text-primary">
-                Copia tu token ahora (solo se muestra una vez):
-              </span>
+            <div className="p-3.5 rounded-xl bg-primary/12 border border-primary/30 text-xs flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-primary">
+                  Copia tu token ahora (solo se muestra una vez):
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(tokenMcpRecienCreado);
+                    setAviso('Token MCP copiado al portapapeles');
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-primary text-[var(--hs-on-accent)] text-[11px] font-semibold cursor-pointer"
+                >
+                  Copiar token
+                </button>
+              </div>
               <code className="font-mono text-text-primary break-all select-all">
                 {tokenMcpRecienCreado}
               </code>
+              <div className="text-[11px] text-text-muted font-mono pt-1 border-t border-primary/20">
+                Endpoint MCP: <span className="text-text-primary">{window.location.origin}/api/v1/mcp</span> • Header:{' '}
+                <span className="text-text-primary">Authorization: Bearer &lt;token&gt;</span>
+              </div>
             </div>
           )}
 
@@ -617,15 +633,42 @@ export default function ConfiguracionGeneral() {
             <button
               type="button"
               onClick={() => {
-                localStorage.setItem('homesoc_codeserver_url', urlCodeServer.trim());
+                const limpia = urlCodeServer.trim();
+                if (limpia && !/^https?:\/\//i.test(limpia)) {
+                  setError(
+                    'La dirección de VS Code Web debe ser una URL web (ej. https://100.99.124.109:8443), no un comando ssh.',
+                  );
+                  return;
+                }
+                setError(null);
+                localStorage.setItem('homesoc_codeserver_url', limpia);
                 localStorage.setItem('homesoc_codeserver_ruta', rutaCodeServer.trim());
-                setAviso('Preferencia de VS Code Web guardada');
+                setAviso('Enlace de VS Code Web guardado correctamente');
               }}
               className="px-4 py-2 rounded-xl bg-primary text-[var(--hs-on-accent)] text-xs font-semibold cursor-pointer"
             >
               Guardar enlace VS Code
             </button>
           </div>
+          {/^https?:\/\//i.test(urlCodeServer.trim()) && (
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border-hairline text-xs">
+              <span className="text-text-muted">
+                También verás el botón <strong>VS Code</strong> en cada proyecto desplegado en{' '}
+                <em>Servicios y Despliegues</em>.
+              </span>
+              <a
+                href={`${urlCodeServer.trim().replace(/\/+$/, '')}/?folder=${encodeURIComponent(
+                  rutaCodeServer.trim() || '/home/coder/project',
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary/15 border border-primary/35 text-primary font-semibold hover:bg-primary/25 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px]">code</span>
+                Abrir VS Code Web ahora
+              </a>
+            </div>
+          )}
         </div>
       </div>
     </div>

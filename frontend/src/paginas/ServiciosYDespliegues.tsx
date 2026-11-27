@@ -115,7 +115,10 @@ export default function ServiciosYDespliegues() {
   const [errorLogs, setErrorLogs] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
 
-  const esAdmin = usuario?.rol === 'administrador';
+  const esAdmin =
+    usuario?.rol === 'superadmin' ||
+    usuario?.rol === 'administrador' ||
+    usuario?.rol === 'colaborador';
 
   const mostrarNotificacion = useCallback((tipo: 'exito' | 'error', mensaje: string) => {
     setNotificacion({ tipo, mensaje });

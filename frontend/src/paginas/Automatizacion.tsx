@@ -177,7 +177,7 @@ export default function Automatizacion() {
   const [umbralBateria, setUmbralBateria] = useState('15');
   const [detenerEnCritico, setDetenerEnCritico] = useState(true);
 
-  const esAdmin = usuario?.rol === 'administrador';
+  const esAdmin = usuario?.rol === 'superadmin' || usuario?.rol === 'administrador';
 
   const cargarTodo = useCallback(async () => {
     if (!tokenAcceso) return;
