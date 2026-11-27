@@ -202,10 +202,13 @@ export const seguridadServicio = {
       tokenAcceso,
     ),
 
-  probarNotificacion: (tokenAcceso: string): Promise<{ alerta: AlertaEnviadaItem }> =>
+  probarNotificacion: (
+    tokenAcceso: string,
+    opciones?: { canal?: 'telegram' | 'email' | 'webhook'; destino?: string },
+  ): Promise<{ alerta: AlertaEnviadaItem }> =>
     apiCliente.post<{ alerta: AlertaEnviadaItem }>(
       '/notificaciones/probar',
-      undefined,
+      opciones ?? { canal: 'telegram' },
       tokenAcceso,
     ),
 

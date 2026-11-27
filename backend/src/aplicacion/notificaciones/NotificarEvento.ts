@@ -75,13 +75,25 @@ export class NotificarEvento {
     return alertasRegistradas;
   }
 
-  public async enviarPrueba(canal: CanalNotificacion = 'telegram'): Promise<AlertaEnviada> {
+  public async enviarPrueba(
+    canal: CanalNotificacion = 'telegram',
+    destinoOpcional?: string,
+  ): Promise<AlertaEnviada> {
     const notificador = this.suscriptores.get(canal);
     const textoBase = 'Notificación de prueba desde HomeSOC (patrón Observer activo)';
     let modo: 'real' | 'simulado' = 'simulado';
 
     if (notificador) {
-      const res = await notificador.enviar('chat_local_simulado', textoBase);
+      let destino = destinoOpcional?.trim() || 'chat_local_simulado';
+      if (destino === 'chat_local_simulado' && canal === 'webhook') {
+        const configs = await this.repositorioSeguridadRed.listarConfiguracionNotificaciones();
+        const encontrada = configs.find((c) => c.canal === 'webhook' && c.destino.startsWith('http'));
+        if (encontrada) destino = encontrada.destino;
+      }
+      const res = await notificador.enviar(destino, textoBase);
+      if (!res.enviado) {
+        throw new Error(`No se pudo entregar la notificación de prueba por canal ${canal}`);
+      }
       modo = res.modo;
     }
 

@@ -57,6 +57,9 @@ export default function ConfiguracionGeneral() {
   const [creandoTokenMcp, setCreandoTokenMcp] = useState(false);
   const [urlCodeServer, setUrlCodeServer] = useState<string>('');
   const [rutaCodeServer, setRutaCodeServer] = useState<string>('/home/coder/project');
+  const [urlWebhookN8n, setUrlWebhookN8n] = useState<string>('');
+  const [guardandoWebhook, setGuardandoWebhook] = useState(false);
+  const [probandoWebhook, setProbandoWebhook] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [probandoAlerta, setProbandoAlerta] = useState(false);
   const [actualizandoEvento, setActualizandoEvento] = useState<string | null>(null);
@@ -91,6 +94,12 @@ export default function ConfiguracionGeneral() {
       setEstado2FA(res2FA);
       setConexionGithub(resGh.conexion);
       setConfigNotifs(resNotifs.configuraciones ?? []);
+      const webhookExistente = (resNotifs.configuraciones ?? []).find(
+        (c) => c.canal === 'webhook' && c.destino.startsWith('http'),
+      );
+      if (webhookExistente) {
+        setUrlWebhookN8n(webhookExistente.destino);
+      }
       setAlertas(resNotifs.alertas ?? []);
       setTokensMcp(resMcp.tokens ?? []);
       if (resEditor?.editor) {
@@ -173,6 +182,67 @@ export default function ConfiguracionGeneral() {
       setError(err instanceof ErrorApi ? err.message : 'No se pudo actualizar la notificación');
     } finally {
       setActualizandoEvento(null);
+    }
+  };
+
+  const manejarGuardarWebhookN8n = async () => {
+    if (!tokenAcceso || !esAdmin) return;
+    const urlLimpia = urlWebhookN8n.trim();
+    if (!urlLimpia.startsWith('http://') && !urlLimpia.startsWith('https://')) {
+      setError('Ingresa una URL válida que empiece con http:// o https:// (ej. http://host.docker.internal:5678/webhook/homesoc-alertas)');
+      return;
+    }
+    setGuardandoWebhook(true);
+    setError(null);
+    try {
+      const eventosClave = Object.keys(ETIQUETAS_EVENTO);
+      await Promise.all(
+        eventosClave.map((tipoEvento) =>
+          seguridadServicio.actualizarConfiguracionNotificacion(
+            {
+              tipoEvento,
+              canal: 'webhook',
+              destino: urlLimpia,
+              habilitado: true,
+            },
+            tokenAcceso,
+          ),
+        ),
+      );
+      const resNotifs = await seguridadServicio.listarAlertasNotificaciones(tokenAcceso);
+      setConfigNotifs(resNotifs.configuraciones ?? []);
+      setAviso('Webhook n8n guardado y activado para todos los eventos clave del servidor.');
+    } catch (err) {
+      setError(err instanceof ErrorApi ? err.message : 'No se pudo guardar el Webhook n8n');
+    } finally {
+      setGuardandoWebhook(false);
+    }
+  };
+
+  const manejarProbarWebhookN8n = async () => {
+    if (!tokenAcceso || !esAdmin) return;
+    const urlLimpia = urlWebhookN8n.trim();
+    if (!urlLimpia.startsWith('http://') && !urlLimpia.startsWith('https://')) {
+      setError('Primero ingresa la URL de tu Webhook de n8n (http:// o https://).');
+      return;
+    }
+    setProbandoWebhook(true);
+    setError(null);
+    try {
+      const { alerta } = await seguridadServicio.probarNotificacion(tokenAcceso, {
+        canal: 'webhook',
+        destino: urlLimpia,
+      });
+      setAlertas((prev) => [alerta, ...prev]);
+      setAviso('Prueba enviada al Webhook n8n correctamente. Revisa la ejecución en tu flujo de n8n.');
+    } catch (err) {
+      setError(
+        err instanceof ErrorApi
+          ? err.message
+          : 'No se pudo entregar la prueba al Webhook n8n. Verifica que el flujo esté activo o en modo escucha.',
+      );
+    } finally {
+      setProbandoWebhook(false);
     }
   };
 
@@ -356,6 +426,49 @@ export default function ConfiguracionGeneral() {
               </button>
             )}
           </div>
+
+          {/* Panel Webhook Saliente n8n → WhatsApp / Automatizaciones */}
+          {esAdmin && (
+            <div className="px-5 py-4 border-b border-border-hairline bg-surface-low/60 flex flex-col gap-3">
+              <div>
+                <div className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px] text-primary">webhook</span>
+                  <span>Webhook Saliente (n8n → WhatsApp / Telegram / Discord)</span>
+                </div>
+                <p className="text-[11px] text-text-muted mt-0.5">
+                  Pega la URL de tu nodo Webhook en n8n (si corre en este mismo servidor usa{' '}
+                  <code className="text-primary">http://host.docker.internal:5678/webhook/...</code>).
+                  HomeSOC enviará un POST JSON con <code className="text-text-primary">mensaje</code> y{' '}
+                  <code className="text-text-primary">textoFormateado</code> ante cada alerta.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="url"
+                  value={urlWebhookN8n}
+                  onChange={(e) => setUrlWebhookN8n(e.target.value)}
+                  placeholder="http://host.docker.internal:5678/webhook/homesoc-alertas"
+                  className="flex-1 rounded-xl bg-surface-card border border-border-hairline px-3 py-2 text-xs font-mono text-text-primary placeholder:text-text-dim focus:outline-none focus:border-primary"
+                />
+                <button
+                  type="button"
+                  disabled={guardandoWebhook || !urlWebhookN8n.trim()}
+                  onClick={() => void manejarGuardarWebhookN8n()}
+                  className="px-3.5 py-2 rounded-xl bg-primary text-[var(--hs-on-accent)] text-xs font-semibold cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                >
+                  {guardandoWebhook ? 'Guardando…' : 'Activar en eventos'}
+                </button>
+                <button
+                  type="button"
+                  disabled={probandoWebhook || !urlWebhookN8n.trim()}
+                  onClick={() => void manejarProbarWebhookN8n()}
+                  className="px-3.5 py-2 rounded-xl border border-primary/35 bg-primary/10 text-primary text-xs font-semibold cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                >
+                  {probandoWebhook ? 'Probando…' : 'Probar Webhook n8n'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="divide-y divide-border-hairline">
             {configNotifs.map((cfg) => (

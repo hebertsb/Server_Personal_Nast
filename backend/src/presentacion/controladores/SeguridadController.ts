@@ -248,12 +248,19 @@ export class SeguridadController {
   };
 
   public probarNotificacion = async (
-    _req: Request,
+    req: Request,
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const alerta = await this.notificarEvento.enviarPrueba('telegram');
+      const esquemaPrueba = z.object({
+        canal: z.enum(['telegram', 'email', 'webhook']).optional().default('telegram'),
+        destino: z.string().trim().max(500).optional(),
+      });
+      const parsed = esquemaPrueba.safeParse(req.body ?? {});
+      const canal = parsed.success ? parsed.data.canal : 'telegram';
+      const destino = parsed.success ? parsed.data.destino : undefined;
+      const alerta = await this.notificarEvento.enviarPrueba(canal, destino);
       res.status(200).json({ alerta });
     } catch (error) {
       next(error);

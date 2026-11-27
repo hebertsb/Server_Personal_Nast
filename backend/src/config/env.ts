@@ -31,6 +31,8 @@ const esquemaEntorno = z.object({
   VENTANA_FUERZA_BRUTA_MIN: z.coerce.number().int().min(1).max(1440).default(15),
   TELEGRAM_TOKEN: z.string().trim().default('dummy'),
   TELEGRAM_CHAT_ID: z.string().trim().default('dummy_chat'),
+  WEBHOOK_ALERTAS_URL: z.string().trim().default(''),
+  WEBHOOK_ALERTAS_SECRET: z.string().trim().default(''),
   PIHOLE_MODO: z.enum(['simulacion', 'real']).default('simulacion'),
   PIHOLE_API_URL: z.string().trim().default('http://host.docker.internal:80/api'),
   PIHOLE_API_PASSWORD: z.string().trim().default(''),

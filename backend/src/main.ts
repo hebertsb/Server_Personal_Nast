@@ -30,6 +30,7 @@ import { ClienteGithubSimulado } from './infraestructura/github/ClienteGithubSim
 import { ProveedorIAHibrido } from './infraestructura/ia/ProveedorIAHibrido';
 import { crearLogger } from './infraestructura/logging/logger';
 import { NotificadorTelegram } from './infraestructura/notificadores/NotificadorTelegram';
+import { NotificadorWebhook } from './infraestructura/notificadores/NotificadorWebhook';
 import { ColectorPihole } from './infraestructura/pihole/ColectorPihole';
 import {
   cerrarPoolPostgres,
@@ -122,6 +123,9 @@ async function iniciarServidor(): Promise<void> {
   const notificarEvento = new NotificarEvento(repositorioSeguridadRed);
   notificarEvento.suscribir(
     new NotificadorTelegram(config.TELEGRAM_TOKEN, config.TELEGRAM_CHAT_ID),
+  );
+  notificarEvento.suscribir(
+    new NotificadorWebhook(config.WEBHOOK_ALERTAS_URL, config.WEBHOOK_ALERTAS_SECRET),
   );
 
   const rangosConfiablesCidr = config.REDES_CONFIABLES_CIDR.split(',')
