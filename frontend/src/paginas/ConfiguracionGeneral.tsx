@@ -54,6 +54,12 @@ export default function ConfiguracionGeneral() {
   const [permisoTokenMcp, setPermisoTokenMcp] = useState<'lectura' | 'escritura'>('lectura');
   const [tokenMcpRecienCreado, setTokenMcpRecienCreado] = useState<string | null>(null);
   const [creandoTokenMcp, setCreandoTokenMcp] = useState(false);
+  const [urlCodeServer, setUrlCodeServer] = useState<string>(
+    () => localStorage.getItem('homesoc_codeserver_url') || '',
+  );
+  const [rutaCodeServer, setRutaCodeServer] = useState<string>(
+    () => localStorage.getItem('homesoc_codeserver_ruta') || '/home/coder/project',
+  );
   const [cargando, setCargando] = useState(true);
   const [probandoAlerta, setProbandoAlerta] = useState(false);
   const [actualizandoEvento, setActualizandoEvento] = useState<string | null>(null);
@@ -579,6 +585,47 @@ export default function ConfiguracionGeneral() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Acceso directo a VS Code Web (code-server) por proyecto */}
+        <div className="rounded-2xl bg-surface-card border border-border-hairline p-5 flex flex-col gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-text-primary">
+              Editor Remoto VS Code Web (code-server)
+            </h2>
+            <p className="text-xs text-text-muted mt-0.5">
+              Configura la URL de tu <code className="font-mono">code-server</code> (local o
+              Tailscale) y la carpeta base de proyectos para abrir cada proyecto desplegado en su
+              propia carpeta desde cualquier dispositivo o celular.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <input
+              type="url"
+              value={urlCodeServer}
+              onChange={(e) => setUrlCodeServer(e.target.value)}
+              placeholder="https://tu-servidor:8443"
+              className="rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs font-mono text-text-primary"
+            />
+            <input
+              type="text"
+              value={rutaCodeServer}
+              onChange={(e) => setRutaCodeServer(e.target.value)}
+              placeholder="/home/coder/project"
+              className="rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs font-mono text-text-primary"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.setItem('homesoc_codeserver_url', urlCodeServer.trim());
+                localStorage.setItem('homesoc_codeserver_ruta', rutaCodeServer.trim());
+                setAviso('Preferencia de VS Code Web guardada');
+              }}
+              className="px-4 py-2 rounded-xl bg-primary text-[var(--hs-on-accent)] text-xs font-semibold cursor-pointer"
+            >
+              Guardar enlace VS Code
+            </button>
+          </div>
         </div>
       </div>
     </div>

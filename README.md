@@ -110,8 +110,8 @@ Para detalles técnicos completos, consulta la documentación en [`docs/`](docs/
 1. Clona el repositorio y crea tu archivo de variables locales:
 
 ```bash
-git clone https://github.com/<tu-usuario>/HomeSOC.git
-cd HomeSOC
+git clone https://github.com/hebertsb/Server_Personal_Nast.git
+cd Server_Personal_Nast
 cp .env.example .env.dev
 ```
 

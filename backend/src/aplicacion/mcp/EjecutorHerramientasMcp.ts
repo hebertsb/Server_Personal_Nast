@@ -71,6 +71,17 @@ export const HERRAMIENTAS_MCP: HerramientaMcpDef[] = [
     inputSchema: { type: 'object', properties: {} },
   },
   {
+    name: 'obtener_historial_despliegues',
+    description:
+      'Devuelve el historial de despliegues de un proyecto con su estado, resultados del Gate de Seguridad y logs de construcción/health check para diagnosticar fallos.',
+    permisoRequerido: 'lectura',
+    inputSchema: {
+      type: 'object',
+      required: ['proyectoId'],
+      properties: { proyectoId: { type: 'string' } },
+    },
+  },
+  {
     name: 'resumen_seguridad_ia',
     description: 'Genera el resumen diario de seguridad en lenguaje natural (apto para voz).',
     permisoRequerido: 'lectura',
@@ -223,6 +234,11 @@ export class EjecutorHerramientasMcp {
           estadoActual: p.estadoActual,
           ultimoCommitSha: p.ultimoCommitSha,
         }));
+        break;
+      }
+      case 'obtener_historial_despliegues': {
+        const proyectoId = String(argumentos.proyectoId ?? '');
+        resultado = await this.casoUsoProyectos.listarHistorial(proyectoId);
         break;
       }
       case 'resumen_seguridad_ia': {

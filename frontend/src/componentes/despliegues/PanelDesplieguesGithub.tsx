@@ -12,6 +12,7 @@ import {
   TipoProyectoDespliegue,
   VariableEntornoItem,
 } from '../../servicios/githubServicio';
+import { ExplicacionFalloItem, iaMcpServicio } from '../../servicios/iaMcpServicio';
 
 function formatearFechaCorta(iso: string): string {
   if (!iso) return '—';
@@ -75,6 +76,40 @@ export default function PanelDesplieguesGithub() {
   const [redeployId, setRedeployId] = useState<string | null>(null);
   const [accionDespliegueId, setAccionDespliegueId] = useState<string | null>(null);
   const [ejecutandoPolling, setEjecutandoPolling] = useState(false);
+  const [explicacionesIa, setExplicacionesIa] = useState<Record<string, ExplicacionFalloItem>>({});
+  const [explicandoId, setExplicandoId] = useState<string | null>(null);
+
+  const construirUrlCodeServer = (nombreProyecto: string): string | null => {
+    try {
+      const base = (localStorage.getItem('homesoc_codeserver_url') || '').trim().replace(/\/+$/, '');
+      if (!base) return null;
+      const carpetaBase = (
+        localStorage.getItem('homesoc_codeserver_ruta') || '/home/coder/project'
+      )
+        .trim()
+        .replace(/\/+$/, '');
+      return `${base}/?folder=${encodeURIComponent(`${carpetaBase}/${nombreProyecto}`)}`;
+    } catch {
+      return null;
+    }
+  };
+
+  const manejarExplicarConIa = async (proyectoId: string, despliegueId: string) => {
+    if (!tokenAcceso) return;
+    setExplicandoId(despliegueId);
+    try {
+      const { explicacion } = await iaMcpServicio.explicarDespliegue(
+        proyectoId,
+        despliegueId,
+        tokenAcceso,
+      );
+      setExplicacionesIa((prev) => ({ ...prev, [despliegueId]: explicacion }));
+    } catch (err) {
+      setError(err instanceof ErrorApi ? err.message : 'No se pudo analizar el despliegue con IA');
+    } finally {
+      setExplicandoId(null);
+    }
+  };
 
   const esAdmin = usuario?.rol === 'administrador';
 
@@ -806,6 +841,22 @@ export default function PanelDesplieguesGithub() {
                         <span>Historial</span>
                       </button>
 
+                      {(() => {
+                        const urlCode = construirUrlCodeServer(proy.nombreProyecto);
+                        return urlCode ? (
+                          <a
+                            href={urlCode}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Abrir carpeta del proyecto en VS Code Web (code-server)"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-surface-low hover:bg-surface-card-elevated border border-border-hairline text-xs font-medium text-primary"
+                          >
+                            <span className="material-symbols-outlined text-[15px]">code</span>
+                            <span>VS Code</span>
+                          </a>
+                        ) : null;
+                      })()}
+
                       {esAdmin && (
                         <button
                           type="button"
@@ -1002,8 +1053,41 @@ export default function PanelDesplieguesGithub() {
                                         Revertir aquí
                                       </button>
                                     )}
+                                    {d.estado !== 'exitoso' && (
+                                      <button
+                                        type="button"
+                                        disabled={explicandoId === d.id}
+                                        onClick={() => void manejarExplicarConIa(proy.id, d.id)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/12 border border-primary/25 text-[11px] font-semibold text-primary cursor-pointer disabled:opacity-50"
+                                      >
+                                        <span className="material-symbols-outlined text-[13px]">
+                                          auto_awesome
+                                        </span>
+                                        <span>
+                                          {explicandoId === d.id
+                                            ? 'Analizando…'
+                                            : 'Explicar con IA'}
+                                        </span>
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
+
+                                {explicacionesIa[d.id] && (
+                                  <div className="p-3 rounded-xl bg-primary/10 border border-primary/25 text-xs flex flex-col gap-1.5">
+                                    <div className="font-semibold text-primary">
+                                      Diagnóstico IA ({explicacionesIa[d.id].proveedor}):
+                                    </div>
+                                    <p className="text-text-primary">
+                                      {explicacionesIa[d.id].causaProbable}
+                                    </p>
+                                    <ul className="list-disc pl-4 text-text-muted space-y-0.5">
+                                      {explicacionesIa[d.id].accionesSugeridas.map((acc, i) => (
+                                        <li key={i}>{acc}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
 
                                 {/* Resultados del Gate de Seguridad (RF-44) */}
                                 {d.escaneos && d.escaneos.length > 0 && (
