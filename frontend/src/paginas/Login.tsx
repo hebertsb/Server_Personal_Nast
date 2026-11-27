@@ -22,12 +22,12 @@ export default function Login() {
       />
 
       {/* Barra superior minimalista con selector de Modo Día/Noche y tonalidad */}
-      <header className="relative z-10 w-full px-6 py-4 flex items-center justify-between">
+      <header className="relative z-40 w-full px-6 py-4 flex items-center justify-between">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-card/90 backdrop-blur-md border border-border-hairline text-xs text-text-muted">
           <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
           <span className="font-medium text-text-primary">HomeSOC</span>
           <span className="text-text-dim">•</span>
-          <span className="font-mono text-[11px]">Entorno Local</span>
+          <span className="font-mono text-[11px]">Nodo Activo</span>
         </div>
 
         <SelectorTema alineacion="derecha" />

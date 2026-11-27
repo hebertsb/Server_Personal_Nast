@@ -693,7 +693,7 @@ export default function LayoutPrincipal({ children }: { children: ReactNode }) {
 
             <div className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <span>Entorno Local</span>
+              <span>Nodo Activo</span>
             </div>
           </div>
 
