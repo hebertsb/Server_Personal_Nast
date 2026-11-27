@@ -81,11 +81,26 @@ export interface DespliegueRegistroItem {
   creadoEn: string;
 }
 
+export interface PasoVerificacionDespliegueItem {
+  id: string;
+  nombre: string;
+  estado: 'aprobado' | 'advertencia' | 'rechazado';
+  detalle: string;
+  recomendacion?: string;
+}
+
+export interface ResultadoCadenaVerificacionItem {
+  aptoParaDesplegar: boolean;
+  resumen: string;
+  pasos: PasoVerificacionDespliegueItem[];
+}
+
 export interface ResultadoDeteccionItem {
   tipoDetectado: TipoProyectoDespliegue | null;
   archivosEncontrados: string[];
   motivo: string;
   plantillaSugerida: string | null;
+  verificacion?: ResultadoCadenaVerificacionItem;
 }
 
 export const githubServicio = {

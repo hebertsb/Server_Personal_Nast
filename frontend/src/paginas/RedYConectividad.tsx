@@ -164,7 +164,7 @@ export default function RedYConectividad() {
                   : 'Pi-hole Conectado'}
               </span>
             )}
-            {subVista === 'trafico-proyectos' && (
+            {import.meta.env.DEV && subVista === 'trafico-proyectos' && (
               <button
                 type="button"
                 onClick={() => void manejarSimularTrafico()}

@@ -708,6 +708,75 @@ export default function PanelDesplieguesGithub() {
             </div>
           ) : deteccion ? (
             <div className="flex flex-col gap-3">
+              {/* Cadena de Verificación Pre-Despliegue (Chain of Responsibility) */}
+              {deteccion.verificacion && (
+                <div className="rounded-xl bg-surface-low border border-border-hairline p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px] text-primary">
+                        fact_check
+                      </span>
+                      <span className="text-xs font-semibold text-text-primary">
+                        Cadena de Verificación Pre-Despliegue
+                      </span>
+                    </div>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold border ${
+                        deteccion.verificacion.aptoParaDesplegar
+                          ? 'bg-primary/15 text-primary border-primary/35'
+                          : 'bg-error-container text-status-critical border-status-critical/35'
+                      }`}
+                    >
+                      {deteccion.verificacion.aptoParaDesplegar
+                        ? 'Apto para desplegar'
+                        : 'No cumple requisitos'}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-text-muted">{deteccion.verificacion.resumen}</p>
+
+                  <div className="space-y-2">
+                    {deteccion.verificacion.pasos.map((paso) => (
+                      <div
+                        key={paso.id}
+                        className={`p-2.5 rounded-xl border text-xs flex items-start gap-2.5 ${
+                          paso.estado === 'aprobado'
+                            ? 'bg-surface-card border-primary/20'
+                            : paso.estado === 'advertencia'
+                              ? 'bg-status-warning/10 border-status-warning/30'
+                              : 'bg-error-container/70 border-status-critical/35'
+                        }`}
+                      >
+                        <span
+                          className={`material-symbols-outlined text-[17px] shrink-0 mt-0.5 ${
+                            paso.estado === 'aprobado'
+                              ? 'text-primary'
+                              : paso.estado === 'advertencia'
+                                ? 'text-status-warning'
+                                : 'text-status-critical'
+                          }`}
+                        >
+                          {paso.estado === 'aprobado'
+                            ? 'check_circle'
+                            : paso.estado === 'advertencia'
+                              ? 'warning'
+                              : 'cancel'}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-text-primary">{paso.nombre}</div>
+                          <p className="text-text-muted mt-0.5">{paso.detalle}</p>
+                          {paso.recomendacion && (
+                            <p className="text-[11px] font-mono text-primary mt-1">
+                              Sugerencia: {paso.recomendacion}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div
                 className={`rounded-xl px-4 py-3 border text-xs ${
                   deteccion.tipoDetectado

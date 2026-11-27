@@ -81,8 +81,14 @@ export default function ConfiguracionBiometria() {
     } catch (err) {
       if (err instanceof ErrorApi) {
         setError(err.message);
+      } else if (err instanceof DOMException && err.name === 'InvalidStateError') {
+        setError(
+          'Este dispositivo (o tu cuenta sincronizada de Google/iCloud) ya tiene una llave biométrica registrada en HomeSOC. Ya podés usar tu Huella o Face ID directamente al iniciar sesión.',
+        );
       } else if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setError('Verificación biométrica cancelada o agotó el tiempo de espera.');
+      } else if (err instanceof DOMException && err.name === 'SecurityError') {
+        setError('La biometría requiere abrir HomeSOC desde tu dirección segura HTTPS.');
       } else if (err instanceof Error) {
         setError(err.message);
       } else {

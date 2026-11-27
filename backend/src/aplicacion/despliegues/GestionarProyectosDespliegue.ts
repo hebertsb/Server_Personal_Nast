@@ -26,9 +26,10 @@ import {
 } from '../../dominio/interfaces/RepositorioDespliegues';
 import { ServicioCifrado } from '../../dominio/interfaces/ServicioCifrado';
 import {
-  detectarTipoProyecto,
-  obtenerPlantillaBase,
-} from '../../dominio/reglas/DetectorTipoProyecto';
+  ejecutarCadenaVerificacionDespliegue,
+  ResultadoCadenaVerificacion,
+} from '../../dominio/reglas/CadenaVerificacionDespliegue';
+import { obtenerPlantillaBase } from '../../dominio/reglas/DetectorTipoProyecto';
 import { evaluarGateSeguridad } from '../../dominio/reglas/EvaluadorGateSeguridad';
 import { NotificarEvento } from '../notificaciones/NotificarEvento';
 
@@ -91,14 +92,20 @@ export class GestionarProyectosDespliegue {
     rama: string,
     puerto: number,
     ctx: ContextoDespliegue,
-  ): Promise<ResultadoDeteccionProyecto> {
+  ): Promise<ResultadoDeteccionProyecto & { verificacion: ResultadoCadenaVerificacion }> {
     const conexion = await this.repoGithub.obtenerPorUsuario(ctx.usuarioId);
     if (!conexion) {
       throw new ErrorGithubNoConectado();
     }
     const token = this.cifrado.descifrar(conexion.tokenCifrado);
     const archivos = await this.clienteGithub.listarArchivosRaiz(token, nombreCompleto, rama);
-    return detectarTipoProyecto(archivos, puerto);
+    const { deteccion, verificacion } = ejecutarCadenaVerificacionDespliegue({
+      nombreCompleto,
+      rama,
+      puerto,
+      archivosRaiz: archivos,
+    });
+    return { ...deteccion, verificacion };
   }
 
   public async listarProyectos(): Promise<ProyectoConectado[]> {
