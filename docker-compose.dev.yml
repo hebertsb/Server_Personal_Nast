@@ -1,0 +1,84 @@
+services:
+  homesoc-db:
+    image: postgres:16-alpine
+    container_name: homesoc-db-dev
+    restart: unless-stopped
+    env_file:
+      - path: .env.dev
+        required: false
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-homesoc_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-homesoc_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-homesoc_dev_local_pass}
+    ports:
+      - "5432:5432"
+    volumes:
+      - homesoc-db-dev-data:/var/lib/postgresql/data
+      - ./backend/migraciones:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - homesoc-dev-net
+
+  homesoc-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: homesoc-backend-dev
+    restart: unless-stopped
+    env_file:
+      - path: .env.dev
+        required: false
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    group_add:
+      - "0"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/fixtures:/app/fixtures
+      - ./backend/tsconfig.json:/app/tsconfig.json:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      homesoc-db:
+        condition: service_healthy
+    networks:
+      - homesoc-dev-net
+
+  homesoc-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: homesoc-frontend-dev
+    restart: unless-stopped
+    environment:
+      VITE_API_PROXY_TARGET: http://homesoc-backend:4000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - homesoc-backend
+    networks:
+      - homesoc-dev-net
+
+  test-nginx:
+    image: nginx:alpine
+    container_name: test-nginx
+    restart: unless-stopped
+    networks:
+      - homesoc-dev-net
+
+networks:
+  homesoc-dev-net:
+    driver: bridge
+
+volumes:
+  homesoc-db-dev-data:

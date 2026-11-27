@@ -1,0 +1,48 @@
+# Despliegue unificado de HomeSOC (copiar .env.example a .env y completar secretos reales)
+services:
+  homesoc-db:
+    image: postgres:16-alpine
+    container_name: homesoc-db
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - homesoc_pgdata:/var/lib/postgresql/data
+      - ./backend/migraciones:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-homesoc_app} -d ${POSTGRES_DB:-homesoc}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  homesoc-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: homesoc-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      homesoc-db:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+
+  homesoc-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: homesoc-frontend
+    restart: unless-stopped
+    depends_on:
+      - homesoc-backend
+    ports:
+      - "3000:80"
+
+volumes:
+  homesoc_pgdata:

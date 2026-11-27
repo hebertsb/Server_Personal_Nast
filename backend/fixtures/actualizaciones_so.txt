@@ -1,0 +1,4 @@
+# Resumen simulado de paquetes pendientes (entorno local de desarrollo - montado :ro)
+openssl/noble-security 3.0.13-0ubuntu3.5 amd64 [upgradable from: 3.0.13-0ubuntu3.4]
+docker-ce/noble 5:27.3.1-1~ubuntu.24.04~noble amd64 [upgradable from: 5:27.2.0-1~ubuntu.24.04~noble]
+nginx-core/noble-updates 1.24.0-2ubuntu7.2 amd64 [upgradable from: 1.24.0-2ubuntu7.1]

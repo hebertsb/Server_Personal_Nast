@@ -1,0 +1,32 @@
+# Variables de entorno y secretos
+.env
+.env.dev
+.env.local
+.env.*.local
+backend/.env
+backend/.env.dev
+frontend/.env
+frontend/.env.local
+
+# Dependencias y artefactos de compilaciÃ³n
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Respaldos y logs locales
+*.log
+npm-debug.log*
+backup_*.sql
+*.sql.bak
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Archivos internos locales que no se publican en el repositorio público
+AGENTS.md
+Bitacora_Homelab_HP245G8.docx

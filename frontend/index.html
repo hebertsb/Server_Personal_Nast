@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es" data-tema="claro" data-acento="esmeralda">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HomeSOC — Panel de Control Homelab</title>
+    <meta name="description" content="Dashboard open source de monitoreo, seguridad y control para servidores domésticos." />
+    <meta name="theme-color" content="#059669" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <script>
+      (function () {
+        try {
+          var tema = localStorage.getItem('homesoc_tema');
+          var acento = localStorage.getItem('homesoc_acento');
+          if (tema === 'claro' || tema === 'oscuro') {
+            document.documentElement.setAttribute('data-tema', tema);
+          }
+          if (acento && ['esmeralda', 'indigo', 'coral', 'cian', 'lima'].indexOf(acento) !== -1) {
+            document.documentElement.setAttribute('data-acento', acento);
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

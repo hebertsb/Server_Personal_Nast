@@ -1,0 +1,1 @@
+export default function ListaContenedores() { return <div className="p-4 bg-[#131b2e] rounded-xl border border-[#3b82f6]/20 text-[#94a3b8] shadow-lg">// TODO: implementar lista de contenedores según HU-XX</div>; }

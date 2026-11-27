@@ -1,0 +1,18 @@
+{
+  "name": "HomeSOC — Panel de Control Homelab",
+  "short_name": "HomeSOC",
+  "description": "Dashboard open source de monitoreo, seguridad, despliegues y automatización para homelabs.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#071418",
+  "theme_color": "#059669",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,181 @@
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import {
+  autenticacionServicio,
+  RespuestaLogin,
+  RespuestaSesionActiva,
+  UsuarioAutenticado,
+} from '../servicios/autenticacionServicio';
+
+interface SesionPersistida {
+  usuario: UsuarioAutenticado;
+  tokenAcceso: string;
+}
+
+interface ValorContextoAutenticacion {
+  usuario: UsuarioAutenticado | null;
+  tokenAcceso: string | null;
+  autenticado: boolean;
+  inicializando: boolean;
+  iniciarSesion: (nombreUsuario: string, contrasena: string) => Promise<RespuestaLogin>;
+  completarSegundoFactor: (datos: {
+    tokenTemporal2FA: string;
+    codigo: string;
+    recordarDispositivo: boolean;
+  }) => Promise<RespuestaSesionActiva>;
+  renovarSesion: () => Promise<boolean>;
+  cerrarSesion: () => Promise<void>;
+  setUsuario: (usuario: UsuarioAutenticado | null) => void;
+}
+
+const CLAVE_SESION = 'homesoc_sesion';
+
+function leerSesionGuardada(): SesionPersistida | null {
+  try {
+    const crudo = sessionStorage.getItem(CLAVE_SESION);
+    if (!crudo) return null;
+    const datos = JSON.parse(crudo) as Partial<SesionPersistida>;
+    if (datos.usuario && typeof datos.tokenAcceso === 'string') {
+      return { usuario: datos.usuario, tokenAcceso: datos.tokenAcceso };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+const ContextoAutenticacion = createContext<ValorContextoAutenticacion | null>(null);
+
+export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
+  const sesionInicialRef = useRef<SesionPersistida | null>(leerSesionGuardada());
+  const inicializadoRef = useRef<boolean>(false);
+  const [usuario, setUsuarioEstado] = useState<UsuarioAutenticado | null>(
+    sesionInicialRef.current?.usuario ?? null,
+  );
+  const [tokenAcceso, setTokenAcceso] = useState<string | null>(
+    sesionInicialRef.current?.tokenAcceso ?? null,
+  );
+  const [inicializando, setInicializando] = useState<boolean>(!sesionInicialRef.current);
+
+  const guardarSesion = useCallback((respuesta: RespuestaSesionActiva) => {
+    setUsuarioEstado(respuesta.usuario);
+    setTokenAcceso(respuesta.tokenAcceso);
+    sessionStorage.setItem(
+      CLAVE_SESION,
+      JSON.stringify({
+        usuario: respuesta.usuario,
+        tokenAcceso: respuesta.tokenAcceso,
+      }),
+    );
+  }, []);
+
+  const limpiarEstadoLocal = useCallback(() => {
+    setUsuarioEstado(null);
+    setTokenAcceso(null);
+    sessionStorage.removeItem(CLAVE_SESION);
+  }, []);
+
+  const iniciarSesion = useCallback(
+    async (nombreUsuario: string, contrasena: string): Promise<RespuestaLogin> => {
+      const respuesta = await autenticacionServicio.login({ nombreUsuario, contrasena });
+      if (!respuesta.requiere2FA) {
+        guardarSesion(respuesta);
+      }
+      return respuesta;
+    },
+    [guardarSesion],
+  );
+
+  const completarSegundoFactor = useCallback(
+    async (datos: {
+      tokenTemporal2FA: string;
+      codigo: string;
+      recordarDispositivo: boolean;
+    }): Promise<RespuestaSesionActiva> => {
+      const respuesta = await autenticacionServicio.verificar2FA(datos);
+      guardarSesion(respuesta);
+      return respuesta;
+    },
+    [guardarSesion],
+  );
+
+  const renovarSesion = useCallback(async (): Promise<boolean> => {
+    try {
+      const respuesta = await autenticacionServicio.renovar();
+      guardarSesion(respuesta);
+      return true;
+    } catch {
+      limpiarEstadoLocal();
+      return false;
+    }
+  }, [guardarSesion, limpiarEstadoLocal]);
+
+  const cerrarSesion = useCallback(async (): Promise<void> => {
+    try {
+      await autenticacionServicio.cerrarSesion();
+    } catch {
+      // Si el backend no responde, igualmente limpiamos la sesión local
+    } finally {
+      limpiarEstadoLocal();
+    }
+  }, [limpiarEstadoLocal]);
+
+  const setUsuario = useCallback(
+    (nuevoUsuario: UsuarioAutenticado | null) => {
+      setUsuarioEstado(nuevoUsuario);
+      if (!nuevoUsuario) {
+        limpiarEstadoLocal();
+      }
+    },
+    [limpiarEstadoLocal],
+  );
+
+  // Solo intenta renovar sesión con cookie HttpOnly una única vez al montar la app
+  useEffect(() => {
+    if (inicializadoRef.current) return;
+    inicializadoRef.current = true;
+    if (sesionInicialRef.current) return;
+
+    let activo = true;
+    void (async () => {
+      await renovarSesion();
+      if (activo) setInicializando(false);
+    })();
+    return () => {
+      activo = false;
+    };
+  }, [renovarSesion]);
+
+  return (
+    <ContextoAutenticacion.Provider
+      value={{
+        usuario,
+        tokenAcceso,
+        autenticado: Boolean(usuario && tokenAcceso),
+        inicializando,
+        iniciarSesion,
+        completarSegundoFactor,
+        renovarSesion,
+        cerrarSesion,
+        setUsuario,
+      }}
+    >
+      {children}
+    </ContextoAutenticacion.Provider>
+  );
+}
+
+export function usarAutenticacion(): ValorContextoAutenticacion {
+  const contexto = useContext(ContextoAutenticacion);
+  if (!contexto) {
+    throw new Error('usarAutenticacion debe utilizarse dentro de ProveedorAutenticacion');
+  }
+  return contexto;
+}

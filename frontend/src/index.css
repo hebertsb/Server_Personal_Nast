@@ -1,0 +1,440 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   HomeSOC Design System — Modo Día / Modo Noche con Superficies Armonizadas
+   Cada tonalidad adapta tanto el acento como la atmósfera de fondo y tarjetas.
+   ========================================================================== */
+
+:root,
+html[data-tema="claro"] {
+  color-scheme: light;
+
+  /* Base Modo Día (tarjetas translúcidas cristalinas sobre lienzo matizado multicolor) */
+  --hs-canvas-base: #f6f8fb;
+  --hs-surface-dim: #edf1f7;
+  --hs-surface-lowest: rgba(255, 255, 255, 0.94);
+  --hs-surface-low: rgba(255, 255, 255, 0.72);
+  --hs-surface-card: rgba(255, 255, 255, 0.84);
+  --hs-surface-card-elevated: rgba(255, 255, 255, 0.96);
+  --hs-surface-high: rgba(236, 242, 249, 0.85);
+  --hs-surface-highest: rgba(222, 232, 242, 0.9);
+  --hs-surface-dock: rgba(255, 255, 255, 0.86);
+  --hs-border-hairline: rgba(15, 23, 42, 0.08);
+  --hs-border-strong: rgba(15, 23, 42, 0.16);
+
+  --hs-text-primary: #0f172a;
+  --hs-text-muted: #475569;
+  --hs-text-dim: #64748b;
+
+  --hs-glass-bg: rgba(255, 255, 255, 0.76);
+  --hs-shadow-sidebar: 0 10px 34px rgba(15, 23, 42, 0.06);
+  --hs-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 24px rgba(15, 23, 42, 0.045);
+  --hs-grid-line: rgba(15, 23, 42, 0.04);
+
+  --hs-mesh-1: #10b981;
+  --hs-mesh-2: #6366f1;
+  --hs-mesh-3: #8b5cf6;
+
+  --hs-warning: #d97706;
+  --hs-critical: #dc2626;
+  --hs-emerald: #059669;
+  --hs-error-container: rgba(220, 38, 38, 0.12);
+}
+
+html[data-tema="oscuro"] {
+  color-scheme: dark;
+
+  --hs-shadow-sidebar: 0 12px 36px rgba(0, 0, 0, 0.34);
+  --hs-shadow-card: 0 2px 14px rgba(0, 0, 0, 0.22);
+  --hs-grid-line: rgba(255, 255, 255, 0.04);
+
+  --hs-warning: #f59e0b;
+  --hs-critical: #ef4444;
+  --hs-emerald: #10b981;
+  --hs-error-container: rgba(239, 68, 68, 0.18);
+}
+
+/* ==========================================================================
+   1. ESMERALDA — Día menta suave / Noche verde petróleo profundo
+   ========================================================================== */
+:root,
+html[data-acento="esmeralda"] {
+  --hs-accent: #059669;
+  --hs-accent-hover: #047857;
+  --hs-accent-soft: #0d9488;
+  --hs-accent-secondary: #0f766e;
+  --hs-accent-tertiary: #14b8a6;
+  --hs-on-accent: #ffffff;
+}
+html[data-tema="claro"][data-acento="esmeralda"] {
+  --hs-canvas-base: #f5f9f8;
+  --hs-surface-dim: #eaf2f0;
+  --hs-surface-low: rgba(255, 255, 255, 0.72);
+  --hs-surface-card-elevated: rgba(244, 251, 248, 0.96);
+  --hs-surface-high: rgba(226, 240, 235, 0.85);
+  --hs-surface-highest: rgba(212, 231, 224, 0.9);
+  --hs-border-hairline: rgba(15, 118, 110, 0.12);
+  --hs-border-strong: rgba(5, 150, 105, 0.24);
+  --hs-mesh-1: #10b981;
+  --hs-mesh-2: #6366f1;
+  --hs-mesh-3: #8b5cf6;
+}
+html[data-tema="oscuro"][data-acento="esmeralda"] {
+  --hs-canvas-base: #071418;
+  --hs-surface-dim: #050f13;
+  --hs-surface-lowest: rgba(11, 28, 32, 0.92);
+  --hs-surface-low: rgba(14, 34, 38, 0.74);
+  --hs-surface-card: rgba(16, 39, 43, 0.78);
+  --hs-surface-card-elevated: rgba(22, 52, 56, 0.88);
+  --hs-surface-high: rgba(28, 63, 68, 0.88);
+  --hs-surface-highest: rgba(36, 78, 84, 0.92);
+  --hs-surface-dock: rgba(11, 28, 32, 0.86);
+  --hs-border-hairline: rgba(94, 234, 212, 0.14);
+  --hs-border-strong: rgba(94, 234, 212, 0.28);
+  --hs-glass-bg: rgba(11, 28, 32, 0.78);
+  --hs-text-primary: #ecfdf5;
+  --hs-text-muted: #a3c7c2;
+  --hs-text-dim: #668f8b;
+  --hs-mesh-1: #10b981;
+  --hs-mesh-2: #6366f1;
+  --hs-mesh-3: #8b5cf6;
+
+  --hs-accent: #10b981;
+  --hs-accent-hover: #34d399;
+  --hs-accent-soft: #2dd4bf;
+  --hs-accent-secondary: #5eead4;
+  --hs-accent-tertiary: #6ee7b7;
+  --hs-on-accent: #022c22;
+}
+
+/* ==========================================================================
+   2. ÍNDIGO — Día lavanda limpia / Noche índigo zafiro profundo
+   ========================================================================== */
+html[data-acento="indigo"] {
+  --hs-accent: #4f46e5;
+  --hs-accent-hover: #4338ca;
+  --hs-accent-soft: #7c3aed;
+  --hs-accent-secondary: #6366f1;
+  --hs-accent-tertiary: #8b5cf6;
+  --hs-on-accent: #ffffff;
+}
+html[data-tema="claro"][data-acento="indigo"] {
+  --hs-canvas-base: #f5f6fc;
+  --hs-surface-dim: #eaecf8;
+  --hs-surface-low: rgba(255, 255, 255, 0.72);
+  --hs-surface-card-elevated: rgba(244, 245, 254, 0.96);
+  --hs-surface-high: rgba(227, 230, 248, 0.85);
+  --hs-surface-highest: rgba(214, 218, 242, 0.9);
+  --hs-border-hairline: rgba(79, 70, 229, 0.12);
+  --hs-border-strong: rgba(79, 70, 229, 0.24);
+  --hs-mesh-1: #6366f1;
+  --hs-mesh-2: #10b981;
+  --hs-mesh-3: #a855f7;
+}
+html[data-tema="oscuro"][data-acento="indigo"] {
+  --hs-canvas-base: #0d1022;
+  --hs-surface-dim: #090b1a;
+  --hs-surface-lowest: rgba(20, 23, 51, 0.92);
+  --hs-surface-low: rgba(24, 28, 60, 0.74);
+  --hs-surface-card: rgba(27, 32, 68, 0.78);
+  --hs-surface-card-elevated: rgba(35, 41, 87, 0.88);
+  --hs-surface-high: rgba(43, 50, 102, 0.88);
+  --hs-surface-highest: rgba(52, 60, 120, 0.92);
+  --hs-surface-dock: rgba(20, 23, 51, 0.86);
+  --hs-border-hairline: rgba(129, 140, 248, 0.17);
+  --hs-border-strong: rgba(129, 140, 248, 0.30);
+  --hs-glass-bg: rgba(20, 23, 51, 0.78);
+  --hs-text-primary: #eef2ff;
+  --hs-text-muted: #a8b3d9;
+  --hs-text-dim: #717da8;
+  --hs-mesh-1: #6366f1;
+  --hs-mesh-2: #10b981;
+  --hs-mesh-3: #a855f7;
+
+  --hs-accent: #818cf8;
+  --hs-accent-hover: #a5b4fc;
+  --hs-accent-soft: #a78bfa;
+  --hs-accent-secondary: #c4b5fd;
+  --hs-accent-tertiary: #ddd6fe;
+  --hs-on-accent: #1e1b4b;
+}
+
+/* ==========================================================================
+   3. CORAL — Día arena cálida / Noche terracota carbón profundo
+   ========================================================================== */
+html[data-acento="coral"] {
+  --hs-accent: #ea580c;
+  --hs-accent-hover: #c2410c;
+  --hs-accent-soft: #f97316;
+  --hs-accent-secondary: #dc2626;
+  --hs-accent-tertiary: #fb923c;
+  --hs-on-accent: #ffffff;
+}
+html[data-tema="claro"][data-acento="coral"] {
+  --hs-canvas-base: #faf6f4;
+  --hs-surface-dim: #f2e9e4;
+  --hs-surface-low: rgba(255, 255, 255, 0.72);
+  --hs-surface-card-elevated: rgba(253, 246, 242, 0.96);
+  --hs-surface-high: rgba(242, 229, 221, 0.85);
+  --hs-surface-highest: rgba(232, 215, 205, 0.9);
+  --hs-border-hairline: rgba(234, 88, 12, 0.12);
+  --hs-border-strong: rgba(234, 88, 12, 0.24);
+  --hs-mesh-1: #fb923c;
+  --hs-mesh-2: #8b5cf6;
+  --hs-mesh-3: #f43f5e;
+}
+html[data-tema="oscuro"][data-acento="coral"] {
+  --hs-canvas-base: #191112;
+  --hs-surface-dim: #120b0c;
+  --hs-surface-lowest: rgba(36, 23, 22, 0.92);
+  --hs-surface-low: rgba(42, 27, 25, 0.74);
+  --hs-surface-card: rgba(47, 30, 27, 0.78);
+  --hs-surface-card-elevated: rgba(60, 39, 34, 0.88);
+  --hs-surface-high: rgba(71, 47, 40, 0.88);
+  --hs-surface-highest: rgba(86, 57, 48, 0.92);
+  --hs-surface-dock: rgba(36, 23, 22, 0.86);
+  --hs-border-hairline: rgba(251, 146, 60, 0.17);
+  --hs-border-strong: rgba(251, 146, 60, 0.30);
+  --hs-glass-bg: rgba(36, 23, 22, 0.78);
+  --hs-text-primary: #fff7ed;
+  --hs-text-muted: #d2b2a2;
+  --hs-text-dim: #997665;
+  --hs-mesh-1: #fb923c;
+  --hs-mesh-2: #8b5cf6;
+  --hs-mesh-3: #f43f5e;
+
+  --hs-accent: #fb923c;
+  --hs-accent-hover: #fdba74;
+  --hs-accent-soft: #f97316;
+  --hs-accent-secondary: #fca5a5;
+  --hs-accent-tertiary: #fed7aa;
+  --hs-on-accent: #431407;
+}
+
+/* ==========================================================================
+   4. CIAN — Día cielo claro / Noche cian océano petróleo
+   ========================================================================== */
+html[data-acento="cian"] {
+  --hs-accent: #0284c7;
+  --hs-accent-hover: #0369a1;
+  --hs-accent-soft: #06b6d4;
+  --hs-accent-secondary: #2563eb;
+  --hs-accent-tertiary: #38bdf8;
+  --hs-on-accent: #ffffff;
+}
+html[data-tema="claro"][data-acento="cian"] {
+  --hs-canvas-base: #f4f8fc;
+  --hs-surface-dim: #e7f0f7;
+  --hs-surface-low: rgba(255, 255, 255, 0.72);
+  --hs-surface-card-elevated: rgba(242, 249, 254, 0.96);
+  --hs-surface-high: rgba(224, 238, 247, 0.85);
+  --hs-surface-highest: rgba(209, 228, 240, 0.9);
+  --hs-border-hairline: rgba(2, 132, 199, 0.12);
+  --hs-border-strong: rgba(2, 132, 199, 0.24);
+  --hs-mesh-1: #06b6d4;
+  --hs-mesh-2: #8b5cf6;
+  --hs-mesh-3: #10b981;
+}
+html[data-tema="oscuro"][data-acento="cian"] {
+  --hs-canvas-base: #071521;
+  --hs-surface-dim: #050f18;
+  --hs-surface-lowest: rgba(11, 32, 47, 0.92);
+  --hs-surface-low: rgba(14, 38, 55, 0.74);
+  --hs-surface-card: rgba(16, 44, 63, 0.78);
+  --hs-surface-card-elevated: rgba(22, 57, 81, 0.88);
+  --hs-surface-high: rgba(28, 70, 97, 0.88);
+  --hs-surface-highest: rgba(35, 84, 115, 0.92);
+  --hs-surface-dock: rgba(11, 32, 47, 0.86);
+  --hs-border-hairline: rgba(34, 211, 238, 0.16);
+  --hs-border-strong: rgba(34, 211, 238, 0.28);
+  --hs-glass-bg: rgba(11, 32, 47, 0.78);
+  --hs-text-primary: #ecfeff;
+  --hs-text-muted: #96bed1;
+  --hs-text-dim: #5d8a9f;
+  --hs-mesh-1: #06b6d4;
+  --hs-mesh-2: #8b5cf6;
+  --hs-mesh-3: #10b981;
+
+  --hs-accent: #22d3ee;
+  --hs-accent-hover: #67e8f9;
+  --hs-accent-soft: #38bdf8;
+  --hs-accent-secondary: #93c5fd;
+  --hs-accent-tertiary: #a5f3fc;
+  --hs-on-accent: #083344;
+}
+
+/* ==========================================================================
+   5. LIMA — Día salvia suave / Noche bosque oliva profundo
+   ========================================================================== */
+html[data-acento="lima"] {
+  --hs-accent: #65a30d;
+  --hs-accent-hover: #4d7c0f;
+  --hs-accent-soft: #84cc16;
+  --hs-accent-secondary: #16a34a;
+  --hs-accent-tertiary: #a3e635;
+  --hs-on-accent: #ffffff;
+}
+html[data-tema="claro"][data-acento="lima"] {
+  --hs-canvas-base: #f6f9f3;
+  --hs-surface-dim: #ebf2e4;
+  --hs-surface-low: rgba(255, 255, 255, 0.72);
+  --hs-surface-card-elevated: rgba(246, 251, 241, 0.96);
+  --hs-surface-high: rgba(228, 238, 217, 0.85);
+  --hs-surface-highest: rgba(215, 229, 200, 0.9);
+  --hs-border-hairline: rgba(101, 163, 13, 0.13);
+  --hs-border-strong: rgba(101, 163, 13, 0.25);
+  --hs-mesh-1: #84cc16;
+  --hs-mesh-2: #38bdf8;
+  --hs-mesh-3: #10b981;
+}
+html[data-tema="oscuro"][data-acento="lima"] {
+  --hs-canvas-base: #0e1710;
+  --hs-surface-dim: #09100a;
+  --hs-surface-lowest: rgba(22, 35, 20, 0.92);
+  --hs-surface-low: rgba(27, 42, 24, 0.74);
+  --hs-surface-card: rgba(31, 48, 27, 0.78);
+  --hs-surface-card-elevated: rgba(40, 62, 34, 0.88);
+  --hs-surface-high: rgba(49, 75, 42, 0.88);
+  --hs-surface-highest: rgba(60, 90, 51, 0.92);
+  --hs-surface-dock: rgba(22, 35, 20, 0.86);
+  --hs-border-hairline: rgba(163, 230, 53, 0.16);
+  --hs-border-strong: rgba(163, 230, 53, 0.28);
+  --hs-glass-bg: rgba(22, 35, 20, 0.78);
+  --hs-text-primary: #f7fee7;
+  --hs-text-muted: #b0c7a0;
+  --hs-text-dim: #799269;
+  --hs-mesh-1: #84cc16;
+  --hs-mesh-2: #38bdf8;
+  --hs-mesh-3: #10b981;
+
+  --hs-accent: #a3e635;
+  --hs-accent-hover: #bef264;
+  --hs-accent-soft: #84cc16;
+  --hs-accent-secondary: #86efac;
+  --hs-accent-tertiary: #d9f99d;
+  --hs-on-accent: #1a2e05;
+}
+
+@theme inline {
+  --color-surface-DEFAULT: var(--hs-surface-card);
+  --color-surface-dim: var(--hs-surface-dim);
+  --color-surface-container: var(--hs-surface-card);
+  --color-surface-low: var(--hs-surface-low);
+  --color-surface-high: var(--hs-surface-high);
+  --color-surface-border: var(--hs-border-hairline);
+
+  --color-cyber-emerald: var(--hs-emerald);
+  --color-cyber-cyan: var(--hs-accent);
+  --color-cyber-amber: var(--hs-warning);
+  --color-cyber-crimson: var(--hs-critical);
+
+  --color-canvas-base: var(--hs-canvas-base);
+  --color-surface-container-lowest: var(--hs-surface-lowest);
+  --color-surface-container-highest: var(--hs-surface-highest);
+  --color-surface-dock: var(--hs-surface-dock);
+  --color-surface-card: var(--hs-surface-card);
+  --color-surface-card-elevated: var(--hs-surface-card-elevated);
+  --color-border-hairline: var(--hs-border-hairline);
+
+  --color-primary: var(--hs-accent);
+  --color-secondary: var(--hs-accent-secondary);
+  --color-secondary-container: var(--hs-accent-soft);
+  --color-tertiary: var(--hs-accent-tertiary);
+  --color-status-nominal: var(--hs-accent);
+  --color-status-routing: var(--hs-accent-soft);
+  --color-status-analyzing: var(--hs-accent-tertiary);
+  --color-status-warning: var(--hs-warning);
+  --color-status-critical: var(--hs-critical);
+  --color-error: var(--hs-critical);
+  --color-error-container: var(--hs-error-container);
+  --color-on-surface: var(--hs-text-primary);
+  --color-text-primary: var(--hs-text-primary);
+  --color-text-muted: var(--hs-text-muted);
+  --color-text-dim: var(--hs-text-dim);
+
+  --font-sans: 'Geist', sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', monospace;
+
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 0.75rem;
+  --spacing-space-lg: 1.25rem;
+  --spacing-space-xl: 2rem;
+}
+
+body {
+  background-color: var(--hs-canvas-base);
+  color: var(--hs-text-primary);
+  overscroll-behavior: none;
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+/* Matizado atmosférico multicolor estilo aurora (verde/cian de un lado, azul/púrpura del otro) */
+html[data-tema="claro"] .bg-canvas-base {
+  background-image:
+    radial-gradient(
+      ellipse 52% 46% at 8% 4%,
+      color-mix(in srgb, var(--hs-mesh-1) 20%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 52% 48% at 94% 8%,
+      color-mix(in srgb, var(--hs-mesh-2) 19%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 46% 42% at 62% 96%,
+      color-mix(in srgb, var(--hs-mesh-3) 14%, transparent),
+      transparent 70%
+    );
+  background-attachment: fixed;
+}
+
+html[data-tema="oscuro"] .bg-canvas-base {
+  background-image:
+    radial-gradient(
+      ellipse 54% 46% at 10% 4%,
+      color-mix(in srgb, var(--hs-mesh-1) 22%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 52% 48% at 92% 10%,
+      color-mix(in srgb, var(--hs-mesh-2) 20%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 48% 42% at 55% 96%,
+      color-mix(in srgb, var(--hs-mesh-3) 14%, transparent),
+      transparent 72%
+    );
+  background-attachment: fixed;
+}
+
+/* Tarjetas y paneles con efecto cristal suave sobre el fondo matizado */
+.bg-surface-card,
+.bg-surface-dock {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--hs-shadow-card);
+}
+
+.grid-bg {
+  background-size: 32px 32px;
+  background-image:
+    linear-gradient(to right, var(--hs-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--hs-grid-line) 1px, transparent 1px);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hs-border-strong);
+  border-radius: 9999px;
+}

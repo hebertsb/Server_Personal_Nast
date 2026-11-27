@@ -1,0 +1,1 @@
+export default function FormularioDeployGithub() { return <div className="p-4 bg-[#131b2e] rounded-xl border border-[#3b82f6]/20 text-[#94a3b8] shadow-lg">// TODO: implementar formulario GitHub según HU-XX</div>; }
