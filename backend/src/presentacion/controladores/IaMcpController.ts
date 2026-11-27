@@ -149,19 +149,34 @@ export class IaMcpController {
         return;
       }
 
-      const body = req.body as {
+      const body = (req.body ?? {}) as {
         id?: string | number | null;
         method?: string;
         params?: Record<string, unknown>;
       };
       const rpcId = body.id ?? null;
 
+      // Notificaciones JSON-RPC 2.0 (ej. notifications/initialized) no llevan respuesta de cuerpo
+      if (typeof body.method === 'string' && body.method.startsWith('notifications/')) {
+        res.status(202).end();
+        return;
+      }
+
+      if (body.method === 'ping') {
+        res.status(200).json({ jsonrpc: '2.0', id: rpcId, result: {} });
+        return;
+      }
+
       if (body.method === 'initialize') {
+        const versionCliente =
+          typeof body.params?.protocolVersion === 'string'
+            ? body.params.protocolVersion
+            : '2025-03-26';
         res.status(200).json({
           jsonrpc: '2.0',
           id: rpcId,
           result: {
-            protocolVersion: '2024-11-05',
+            protocolVersion: versionCliente,
             serverInfo: { name: 'homesoc-mcp', version: '1.0.0' },
             capabilities: { tools: {} },
           },

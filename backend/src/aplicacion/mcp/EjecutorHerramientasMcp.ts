@@ -98,6 +98,13 @@ export const HERRAMIENTAS_MCP: HerramientaMcpDef[] = [
     },
   },
   {
+    name: 'sugerir_puerto_libre',
+    description:
+      'Inspecciona contenedores Docker activos y proyectos registrados para devolver el próximo puerto libre disponible (ej. 4100+) sin colisiones.',
+    permisoRequerido: 'lectura',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
     name: 'listar_variables_proyecto',
     description:
       'Lista únicamente los nombres de claves (enmascaradas) de las variables de entorno de un proyecto. Nunca expone valores.',
@@ -248,6 +255,10 @@ export class EjecutorHerramientasMcp {
       case 'consultar_asistente_voz': {
         const pregunta = String(argumentos.pregunta ?? '¿Cómo está el servidor?');
         resultado = await this.asistenteIA.consultarAsistente(pregunta);
+        break;
+      }
+      case 'sugerir_puerto_libre': {
+        resultado = await this.casoUsoProyectos.sugerirProximoPuertoLibre();
         break;
       }
       case 'listar_variables_proyecto': {
