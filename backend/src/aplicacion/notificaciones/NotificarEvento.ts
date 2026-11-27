@@ -92,7 +92,9 @@ export class NotificarEvento {
       }
       const res = await notificador.enviar(destino, textoBase);
       if (!res.enviado) {
-        throw new Error(`No se pudo entregar la notificación de prueba por canal ${canal}`);
+        throw new Error(
+          res.detalle ?? `No se pudo entregar la notificación de prueba por canal ${canal}`,
+        );
       }
       modo = res.modo;
     }

@@ -16,7 +16,7 @@ export class NotificadorWebhook implements NotificadorCanal {
   public async enviar(
     destino: string,
     mensaje: string,
-  ): Promise<{ enviado: boolean; modo: 'real' | 'simulado' }> {
+  ): Promise<{ enviado: boolean; modo: 'real' | 'simulado'; detalle?: string }> {
     const candidato =
       destino && destino !== 'chat_local_simulado' && destino.trim().length > 0
         ? destino.trim()
@@ -30,11 +30,11 @@ export class NotificadorWebhook implements NotificadorCanal {
     try {
       urlValida = new URL(candidato);
     } catch {
-      return { enviado: false, modo: 'real' };
+      return { enviado: false, modo: 'real', detalle: 'URL de webhook inválida' };
     }
 
     if (urlValida.protocol !== 'http:' && urlValida.protocol !== 'https:') {
-      return { enviado: false, modo: 'real' };
+      return { enviado: false, modo: 'real', detalle: 'La URL debe empezar con http:// o https://' };
     }
 
     const cuerpo = JSON.stringify({
@@ -64,9 +64,21 @@ export class NotificadorWebhook implements NotificadorCanal {
         body: cuerpo,
         signal: AbortSignal.timeout(5000),
       });
-      return { enviado: respuesta.ok, modo: 'real' };
-    } catch {
-      return { enviado: false, modo: 'real' };
+      if (!respuesta.ok) {
+        const hint =
+          respuesta.status === 404
+            ? 'HTTP 404: el webhook no está registrado o el flujo en n8n no está activo (si estás probando usa /webhook-test/... y activa Listen for Test Event).'
+            : `El endpoint Webhook respondió HTTP ${respuesta.status}`;
+        return { enviado: false, modo: 'real', detalle: hint };
+      }
+      return { enviado: true, modo: 'real' };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error de red';
+      return {
+        enviado: false,
+        modo: 'real',
+        detalle: `No se pudo conectar al Webhook (${msg}). Verifica que n8n esté corriendo y accesible.`,
+      };
     }
   }
 }

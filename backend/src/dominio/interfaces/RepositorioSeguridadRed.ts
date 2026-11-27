@@ -26,7 +26,10 @@ export interface AlertaEnviada {
 
 export interface NotificadorCanal {
   readonly canal: CanalNotificacion;
-  enviar(destino: string, mensaje: string): Promise<{ enviado: boolean; modo: 'real' | 'simulado' }>;
+  enviar(
+    destino: string,
+    mensaje: string,
+  ): Promise<{ enviado: boolean; modo: 'real' | 'simulado'; detalle?: string }>;
 }
 
 export interface RepositorioSeguridadRed {

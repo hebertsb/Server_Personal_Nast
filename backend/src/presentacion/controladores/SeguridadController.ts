@@ -263,6 +263,12 @@ export class SeguridadController {
       const alerta = await this.notificarEvento.enviarPrueba(canal, destino);
       res.status(200).json({ alerta });
     } catch (error) {
+      if (error instanceof Error) {
+        res.status(400).json({
+          error: { codigo: 'ENTREGA_FALLIDA', mensaje: error.message },
+        });
+        return;
+      }
       next(error);
     }
   };

@@ -16,7 +16,7 @@ export class NotificadorTelegram implements NotificadorCanal {
   public async enviar(
     destino: string,
     mensaje: string,
-  ): Promise<{ enviado: boolean; modo: 'real' | 'simulado' }> {
+  ): Promise<{ enviado: boolean; modo: 'real' | 'simulado'; detalle?: string }> {
     const tokenLimpio = this.tokenBot.trim();
     const esTokenSimulado =
       !tokenLimpio || tokenLimpio === 'dummy' || tokenLimpio === 'changeme';
@@ -28,22 +28,41 @@ export class NotificadorTelegram implements NotificadorCanal {
     const chatId =
       destino && destino !== 'chat_local_simulado' ? destino : this.chatIdPorDefecto;
 
-    const respuesta = await fetch(
-      `https://api.telegram.org/bot${encodeURIComponent(tokenLimpio)}/sendMessage`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: `🛡️ [HomeSOC] ${mensaje}`,
-        }),
-        signal: AbortSignal.timeout(5000),
-      },
-    );
+    try {
+      const respuesta = await fetch(
+        `https://api.telegram.org/bot${encodeURIComponent(tokenLimpio)}/sendMessage`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: `🛡️ [HomeSOC] ${mensaje}`,
+          }),
+          signal: AbortSignal.timeout(5000),
+        },
+      );
 
-    return {
-      enviado: respuesta.ok,
-      modo: 'real',
-    };
+      if (!respuesta.ok) {
+        let desc = `HTTP ${respuesta.status}`;
+        try {
+          const body = (await respuesta.json()) as { description?: string };
+          if (body.description) desc = body.description;
+        } catch {
+          // Ignorar
+        }
+        const hint = desc.toLowerCase().includes('chat not found')
+          ? 'Telegram: chat not found. Abre el chat de tu bot en Telegram y presiona Iniciar / Start primero.'
+          : `Telegram rechazó el envío: ${desc}`;
+        return { enviado: false, modo: 'real', detalle: hint };
+      }
+
+      return { enviado: true, modo: 'real' };
+    } catch (err) {
+      return {
+        enviado: false,
+        modo: 'real',
+        detalle: `Error de red hacia Telegram: ${err instanceof Error ? err.message : 'desconocido'}`,
+      };
+    }
   }
 }
