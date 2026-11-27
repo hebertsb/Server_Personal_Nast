@@ -25,8 +25,11 @@ services:
       - .env
     environment:
       NODE_ENV: production
+    group_add:
+      - "${DOCKER_GID:-983}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys/class/power_supply:/sys/class/power_supply:ro
     depends_on:
       homesoc-db:
         condition: service_healthy

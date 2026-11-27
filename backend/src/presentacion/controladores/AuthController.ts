@@ -52,10 +52,13 @@ export class AuthController {
     private readonly casoUsoAccesoYUsuarios?: GestionarAccesoYUsuarios,
   ) {}
 
-  private obtenerOpcionesCookie() {
+  private obtenerOpcionesCookie(req?: Request) {
+    const esHttps = Boolean(
+      req && (req.secure || req.headers['x-forwarded-proto'] === 'https'),
+    );
     return {
       httpOnly: true,
-      secure: this.esProduccion,
+      secure: this.esProduccion && esHttps,
       sameSite: 'lax' as const,
       path: '/api/v1/auth',
     };

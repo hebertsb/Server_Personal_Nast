@@ -31,9 +31,14 @@ export function crearAplicacion(opciones: OpcionesApp): Express {
         : false,
     }),
   );
+  const origenesPermitidos = opciones.corsOrigin
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.use(
     cors({
-      origin: opciones.corsOrigin,
+      origin: origenesPermitidos.length <= 1 ? origenesPermitidos[0] || '*' : origenesPermitidos,
       credentials: true,
     }),
   );
