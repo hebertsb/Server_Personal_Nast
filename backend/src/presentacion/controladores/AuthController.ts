@@ -19,7 +19,17 @@ import {
 
 const NOMBRE_COOKIE_REFRESH = 'homesoc_refresh_token';
 const NOMBRE_COOKIE_DISPOSITIVO = 'homesoc_dispositivo_confiable';
-const SIETE_DIAS_MS = 7 * 24 * 60 * 60 * 1000;
+const UN_DIA_MS = 24 * 60 * 60 * 1000;
+const SIETE_DIAS_MS = 7 * UN_DIA_MS;
+
+function opcionesCookieRefresh(
+  base: { httpOnly: boolean; secure: boolean; sameSite: 'lax'; path: string },
+  dias?: number,
+) {
+  if (dias === 0) return base;
+  const diasFinales = dias && dias > 0 ? dias : 7;
+  return { ...base, maxAge: diasFinales * UN_DIA_MS };
+}
 
 function extraerCookie(cabeceraCookie: string | undefined, nombre: string): string | null {
   if (!cabeceraCookie) return null;
@@ -91,7 +101,7 @@ export class AuthController {
         res.status(501).json({ error: { codigo: 'NO_DISPONIBLE', mensaje: 'Setup no disponible' } });
         return;
       }
-      const { nombreUsuario, contrasena } = req.body as SetupInicialDTO;
+      const { nombreUsuario, contrasena, recordarSesionDias } = req.body as SetupInicialDTO;
       const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
       const resultado = await this.casoUsoAccesoYUsuarios.ejecutarSetupInicial({
         nombreUsuario,
@@ -99,10 +109,11 @@ export class AuthController {
         direccionIp,
       });
 
-      res.cookie(NOMBRE_COOKIE_REFRESH, resultado.tokenRefresh, {
-        ...this.obtenerOpcionesCookie(),
-        maxAge: SIETE_DIAS_MS,
-      });
+      res.cookie(
+        NOMBRE_COOKIE_REFRESH,
+        resultado.tokenRefresh,
+        opcionesCookieRefresh(this.obtenerOpcionesCookie(req), recordarSesionDias),
+      );
 
       res.status(201).json({
         requiere2FA: false,
@@ -125,7 +136,8 @@ export class AuthController {
         res.status(501).json({ error: { codigo: 'NO_DISPONIBLE', mensaje: 'Registro no disponible' } });
         return;
       }
-      const { tokenInvitacion, nombreUsuario, contrasena } = req.body as RegistroInvitacionDTO;
+      const { tokenInvitacion, nombreUsuario, contrasena, recordarSesionDias } =
+        req.body as RegistroInvitacionDTO;
       const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
       const resultado = await this.casoUsoAccesoYUsuarios.registrarConInvitacion({
         tokenInvitacion,
@@ -134,10 +146,11 @@ export class AuthController {
         direccionIp,
       });
 
-      res.cookie(NOMBRE_COOKIE_REFRESH, resultado.tokenRefresh, {
-        ...this.obtenerOpcionesCookie(),
-        maxAge: SIETE_DIAS_MS,
-      });
+      res.cookie(
+        NOMBRE_COOKIE_REFRESH,
+        resultado.tokenRefresh,
+        opcionesCookieRefresh(this.obtenerOpcionesCookie(req), recordarSesionDias),
+      );
 
       res.status(201).json({
         requiere2FA: false,
@@ -180,7 +193,7 @@ export class AuthController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const { nombreUsuario, contrasena } = req.body as LoginDTO;
+      const { nombreUsuario, contrasena, recordarSesionDias } = req.body as LoginDTO;
       const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
       const tokenDispositivo = extraerCookie(req.headers.cookie, NOMBRE_COOKIE_DISPOSITIVO);
       const huellaDispositivo = tokenDispositivo
@@ -205,10 +218,11 @@ export class AuthController {
         return;
       }
 
-      res.cookie(NOMBRE_COOKIE_REFRESH, resultado.tokenRefresh, {
-        ...this.obtenerOpcionesCookie(),
-        maxAge: SIETE_DIAS_MS,
-      });
+      res.cookie(
+        NOMBRE_COOKIE_REFRESH,
+        resultado.tokenRefresh,
+        opcionesCookieRefresh(this.obtenerOpcionesCookie(req), recordarSesionDias),
+      );
 
       res.status(200).json({
         requiere2FA: false,
@@ -241,13 +255,13 @@ export class AuthController {
       });
 
       res.cookie(NOMBRE_COOKIE_REFRESH, resultado.tokenRefresh, {
-        ...this.obtenerOpcionesCookie(),
+        ...this.obtenerOpcionesCookie(req),
         maxAge: SIETE_DIAS_MS,
       });
 
       if (resultado.tokenDispositivoConfiable) {
         res.cookie(NOMBRE_COOKIE_DISPOSITIVO, resultado.tokenDispositivoConfiable, {
-          ...this.obtenerOpcionesCookie(),
+          ...this.obtenerOpcionesCookie(req),
           maxAge: this.diasDispositivoConfiable * 24 * 60 * 60 * 1000,
         });
       }
@@ -381,7 +395,7 @@ export class AuthController {
       const resultado = await this.casoUsoRenovarSesion.ejecutar(tokenRefresh);
 
       res.cookie(NOMBRE_COOKIE_REFRESH, resultado.tokenRefresh, {
-        ...this.obtenerOpcionesCookie(),
+        ...this.obtenerOpcionesCookie(req),
         maxAge: SIETE_DIAS_MS,
       });
 

@@ -33,6 +33,7 @@ export interface UsuarioAutenticado {
 export interface CredencialesLogin {
   nombreUsuario: string;
   contrasena: string;
+  recordarSesionDias?: number;
 }
 
 export interface RespuestaSesionActiva {
@@ -85,6 +86,7 @@ export const autenticacionServicio = {
     tokenInvitacion: string;
     nombreUsuario: string;
     contrasena: string;
+    recordarSesionDias?: number;
   }): Promise<RespuestaSesionActiva> =>
     apiCliente.post<RespuestaSesionActiva>('/auth/registrar-con-invitacion', datos),
 

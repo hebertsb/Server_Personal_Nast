@@ -13,7 +13,20 @@ const esquemaNombreUsuarioNuevo = z
 const esquemaContrasenaFuerte = z
   .string({ error: 'La contraseña es obligatoria' })
   .min(8, 'La contraseña debe tener al menos 8 caracteres')
-  .max(200, 'La contraseña excede la longitud permitida');
+  .max(200, 'La contraseña excede la longitud permitida')
+  .regex(/[A-Z]/, 'Debe incluir al menos una letra mayúscula')
+  .regex(/[a-z]/, 'Debe incluir al menos una letra minúscula')
+  .regex(/\d/, 'Debe incluir al menos un número')
+  .regex(/[^A-Za-z0-9]/, 'Debe incluir al menos un símbolo (ej. @, #, $, _, -)');
+
+const esquemaRecordarDias = z
+  .number()
+  .int()
+  .refine((v) => v === 0 || v === 1 || v === 7 || v === 30, {
+    message: 'Duración de sesión inválida',
+  })
+  .optional()
+  .default(7);
 
 export const esquemaLogin = z.object({
   nombreUsuario: z
@@ -25,11 +38,13 @@ export const esquemaLogin = z.object({
     .string({ error: 'La contraseña es obligatoria' })
     .min(1, 'La contraseña es obligatoria')
     .max(200, 'La contraseña excede la longitud permitida'),
+  recordarSesionDias: esquemaRecordarDias,
 });
 
 export const esquemaSetupInicial = z.object({
   nombreUsuario: esquemaNombreUsuarioNuevo,
   contrasena: esquemaContrasenaFuerte,
+  recordarSesionDias: esquemaRecordarDias,
 });
 
 export const esquemaRegistroInvitacion = z.object({
@@ -40,6 +55,7 @@ export const esquemaRegistroInvitacion = z.object({
     .max(120, 'Token de invitación demasiado largo'),
   nombreUsuario: esquemaNombreUsuarioNuevo,
   contrasena: esquemaContrasenaFuerte,
+  recordarSesionDias: esquemaRecordarDias,
 });
 
 export const esquemaRecuperarTotp = z.object({

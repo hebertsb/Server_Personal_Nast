@@ -25,7 +25,11 @@ interface ValorContextoAutenticacion {
   tokenAcceso: string | null;
   autenticado: boolean;
   inicializando: boolean;
-  iniciarSesion: (nombreUsuario: string, contrasena: string) => Promise<RespuestaLogin>;
+  iniciarSesion: (
+    nombreUsuario: string,
+    contrasena: string,
+    recordarSesionDias?: number,
+  ) => Promise<RespuestaLogin>;
   completarSegundoFactor: (datos: {
     tokenTemporal2FA: string;
     codigo: string;
@@ -86,8 +90,16 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
   }, []);
 
   const iniciarSesion = useCallback(
-    async (nombreUsuario: string, contrasena: string): Promise<RespuestaLogin> => {
-      const respuesta = await autenticacionServicio.login({ nombreUsuario, contrasena });
+    async (
+      nombreUsuario: string,
+      contrasena: string,
+      recordarSesionDias = 7,
+    ): Promise<RespuestaLogin> => {
+      const respuesta = await autenticacionServicio.login({
+        nombreUsuario,
+        contrasena,
+        recordarSesionDias,
+      });
       if (!respuesta.requiere2FA) {
         guardarSesion(respuesta);
       }

@@ -9,6 +9,138 @@ import {
 
 type ModoPortal = 'login' | 'registro' | 'recuperar' | 'setup';
 
+interface EvaluacionContrasena {
+  longitud: boolean;
+  mayuscula: boolean;
+  minuscula: boolean;
+  numero: boolean;
+  simbolo: boolean;
+  puntaje: number;
+  valida: boolean;
+}
+
+function evaluarContrasena(clave: string): EvaluacionContrasena {
+  const longitud = clave.length >= 8;
+  const mayuscula = /[A-Z]/.test(clave);
+  const minuscula = /[a-z]/.test(clave);
+  const numero = /\d/.test(clave);
+  const simbolo = /[^A-Za-z0-9]/.test(clave);
+  const puntaje = [longitud, mayuscula, minuscula, numero, simbolo].filter(Boolean).length;
+  return {
+    longitud,
+    mayuscula,
+    minuscula,
+    numero,
+    simbolo,
+    puntaje,
+    valida: puntaje === 5,
+  };
+}
+
+function IndicadorFortaleza({ clave }: { clave: string }) {
+  const ev = evaluarContrasena(clave);
+  const porcentaje = (ev.puntaje / 5) * 100;
+  const colorBarra =
+    ev.puntaje <= 2
+      ? 'bg-status-critical'
+      : ev.puntaje <= 4
+        ? 'bg-status-warning'
+        : 'bg-primary';
+  const etiqueta =
+    clave.length === 0
+      ? 'Requisitos de seguridad'
+      : ev.puntaje <= 2
+        ? 'Débil'
+        : ev.puntaje <= 4
+          ? 'Media — falta completar'
+          : 'Segura';
+
+  const reglas = [
+    { ok: ev.longitud, texto: '8+ caracteres' },
+    { ok: ev.mayuscula, texto: 'Mayúscula' },
+    { ok: ev.minuscula, texto: 'Minúscula' },
+    { ok: ev.numero, texto: 'Número' },
+    { ok: ev.simbolo, texto: 'Símbolo (@#$...)' },
+  ];
+
+  return (
+    <div className="p-2.5 rounded-xl bg-surface-low/80 border border-border-hairline space-y-2">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="text-text-muted">Fortaleza de clave</span>
+        <span
+          className={`font-mono font-semibold ${
+            ev.valida ? 'text-primary' : clave.length > 0 ? 'text-status-warning' : 'text-text-dim'
+          }`}
+        >
+          {etiqueta}
+        </span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-surface-high overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-300 ${colorBarra}`}
+          style={{ width: `${porcentaje}%` }}
+        />
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {reglas.map((r) => (
+          <span
+            key={r.texto}
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono border transition-colors ${
+              r.ok
+                ? 'bg-primary/15 text-primary border-primary/35'
+                : 'bg-surface-card text-text-dim border-border-hairline'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[12px]">
+              {r.ok ? 'check_circle' : 'radio_button_unchecked'}
+            </span>
+            {r.texto}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SelectorRecordarSesion({
+  recordar,
+  setRecordar,
+  dias,
+  setDias,
+}: {
+  recordar: boolean;
+  setRecordar: (v: boolean) => void;
+  dias: number;
+  setDias: (v: number) => void;
+}) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-surface-low border border-border-hairline">
+      <label className="flex items-center gap-2 text-xs text-text-muted cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={recordar}
+          onChange={(e) => setRecordar(e.target.checked)}
+          className="accent-[var(--hs-accent)] w-3.5 h-3.5 cursor-pointer"
+        />
+        <span>Mantener sesión en este navegador</span>
+      </label>
+
+      {recordar && (
+        <select
+          value={dias}
+          onChange={(e) => setDias(Number(e.target.value))}
+          aria-label="Duración de sesión recordada"
+          className="bg-surface-card border border-border-hairline rounded-lg px-2 py-1 text-[11px] font-mono text-primary focus:outline-none focus:border-primary cursor-pointer"
+        >
+          <option value={1}>24 horas</option>
+          <option value={7}>7 días</option>
+          <option value={30}>30 días</option>
+        </select>
+      )}
+    </div>
+  );
+}
+
 export default function FormularioLogin() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -22,8 +154,14 @@ export default function FormularioLogin() {
   const [compuertaCerrada, setCompuertaCerrada] = useState(false);
   const [mensajeCompuerta, setMensajeCompuerta] = useState('INICIALIZANDO COMPUERTA...');
 
+  // Preferencia de sesión recordada en este navegador
+  const [recordarSesion, setRecordarSesion] = useState(true);
+  const [diasRecordar, setDiasRecordar] = useState(7);
+
   // Campos de Login
-  const [nombreUsuario, setNombreUsuario] = useState('');
+  const [nombreUsuario, setNombreUsuario] = useState(
+    () => localStorage.getItem('homesoc_ultimo_usuario') || '',
+  );
   const [contrasena, setContrasena] = useState('');
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
 
@@ -32,6 +170,8 @@ export default function FormularioLogin() {
   const [usuarioNuevo, setUsuarioNuevo] = useState('');
   const [contrasenaNueva, setContrasenaNueva] = useState('');
   const [confirmarContrasena, setConfirmarContrasena] = useState('');
+  const [mostrarNueva, setMostrarNueva] = useState(false);
+  const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
 
   // Campos de Recuperación por 2FA (TOTP)
   const [usuarioRecuperar, setUsuarioRecuperar] = useState('');
@@ -53,7 +193,6 @@ export default function FormularioLogin() {
   const [mensajeError, setMensajeError] = useState<string | null>(null);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
 
-  // Detecta si es primer arranque (Setup Superadmin) o si viene un enlace de invitación (?token=...)
   useEffect(() => {
     let activo = true;
     const tokenUrl = searchParams.get('token')?.trim();
@@ -82,7 +221,6 @@ export default function FormularioLogin() {
     };
   }, [searchParams]);
 
-  /** Ejecuta la secuencia animada de cierre/escaneo/apertura de compuerta electrónica. */
   const transicionarCompuerta = (etiqueta: string, alCambiar: () => void) => {
     setMensajeError(null);
     setMensajeExito(null);
@@ -110,6 +248,16 @@ export default function FormularioLogin() {
     });
   };
 
+  const diasEfectivos = recordarSesion ? diasRecordar : 0;
+
+  const guardarUsuarioSiRecuerda = (nombre: string) => {
+    if (recordarSesion) {
+      localStorage.setItem('homesoc_ultimo_usuario', nombre.trim());
+    } else {
+      localStorage.removeItem('homesoc_ultimo_usuario');
+    }
+  };
+
   const manejarPaso1 = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensajeError(null);
@@ -118,7 +266,8 @@ export default function FormularioLogin() {
     setCargando(true);
 
     try {
-      const respuesta = await iniciarSesion(nombreUsuario, contrasena);
+      const respuesta = await iniciarSesion(nombreUsuario, contrasena, diasEfectivos);
+      guardarUsuarioSiRecuerda(nombreUsuario);
       if (respuesta.requiere2FA) {
         transicionarCompuerta('DESAFÍO 2FA REQUERIDO — SELLANDO CANAL...', () => {
           setDesafio2FA(respuesta);
@@ -180,8 +329,10 @@ export default function FormularioLogin() {
   const manejarSetupInicial = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensajeError(null);
-    if (contrasenaNueva.length < 8) {
-      setMensajeError('La contraseña debe tener al menos 8 caracteres');
+    if (!evaluarContrasena(contrasenaNueva).valida) {
+      setMensajeError(
+        'La contraseña debe tener al menos 8 caracteres, mayúscula, minúscula, número y símbolo',
+      );
       return;
     }
     if (contrasenaNueva !== confirmarContrasena) {
@@ -195,7 +346,9 @@ export default function FormularioLogin() {
       const sesion = await autenticacionServicio.setupInicial({
         nombreUsuario: usuarioNuevo,
         contrasena: contrasenaNueva,
+        recordarSesionDias: diasEfectivos,
       });
+      guardarUsuarioSiRecuerda(usuarioNuevo);
       establecerSesionDirecta(sesion);
       setCompuertaCerrada(true);
       setMensajeCompuerta('SUPERADMIN ACTIVADO — ABRIENDO SOC');
@@ -212,8 +365,10 @@ export default function FormularioLogin() {
   const manejarRegistroInvitacion = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensajeError(null);
-    if (contrasenaNueva.length < 8) {
-      setMensajeError('La contraseña debe tener al menos 8 caracteres');
+    if (!evaluarContrasena(contrasenaNueva).valida) {
+      setMensajeError(
+        'La contraseña debe tener al menos 8 caracteres, mayúscula, minúscula, número y símbolo',
+      );
       return;
     }
     if (contrasenaNueva !== confirmarContrasena) {
@@ -228,7 +383,9 @@ export default function FormularioLogin() {
         tokenInvitacion,
         nombreUsuario: usuarioNuevo,
         contrasena: contrasenaNueva,
+        recordarSesionDias: diasEfectivos,
       });
+      guardarUsuarioSiRecuerda(usuarioNuevo);
       establecerSesionDirecta(sesion);
       setCompuertaCerrada(true);
       setMensajeCompuerta('CUENTA ACTIVADA — ACCESO CONCEDIDO');
@@ -247,8 +404,10 @@ export default function FormularioLogin() {
     setMensajeError(null);
     setMensajeExito(null);
 
-    if (nuevaContrasenaRecuperar.length < 8) {
-      setMensajeError('La nueva contraseña debe tener al menos 8 caracteres');
+    if (!evaluarContrasena(nuevaContrasenaRecuperar).valida) {
+      setMensajeError(
+        'La nueva contraseña debe tener al menos 8 caracteres, mayúscula, minúscula, número y símbolo',
+      );
       return;
     }
     if (nuevaContrasenaRecuperar !== confirmarRecuperar) {
@@ -332,7 +491,7 @@ export default function FormularioLogin() {
         </p>
       </div>
 
-      {/* Selector de modos (solo si el setup inicial ya fue completado y no estamos en paso 2FA) */}
+      {/* Selector de modos */}
       {!requiereSetup && !desafio2FA && !verificandoEstado && (
         <div className="w-full grid grid-cols-3 gap-1.5 p-1.5 mb-4 rounded-2xl bg-surface-card/90 backdrop-blur-xl border border-border-hairline shadow-sm">
           {(
@@ -368,7 +527,6 @@ export default function FormularioLogin() {
         className="relative w-full rounded-2xl bg-surface-card/95 backdrop-blur-xl border border-border-strong overflow-hidden transition-all duration-300"
         style={{ boxShadow: 'var(--hs-shadow-sidebar)' }}
       >
-        {/* Barra superior de telemetría */}
         <div className="h-1.5 w-full bg-surface-high relative overflow-hidden">
           <div
             className={`h-full w-1/3 bg-gradient-to-r from-transparent via-primary to-transparent ${
@@ -377,14 +535,13 @@ export default function FormularioLogin() {
           />
         </div>
 
-        {/* Compuerta electrónica (hojas izquierda y derecha que se cierran y abren) */}
+        {/* Compuerta electrónica */}
         <div
           aria-hidden={!compuertaCerrada}
           className={`absolute inset-0 z-30 pointer-events-none flex ${
             compuertaCerrada ? 'pointer-events-auto' : ''
           }`}
         >
-          {/* Hoja izquierda */}
           <div
             className={`w-1/2 h-full hs-door-panel border-r-2 border-primary/70 transition-transform duration-300 ease-in-out flex items-center justify-end pr-3 ${
               compuertaCerrada ? 'translate-x-0' : '-translate-x-full'
@@ -392,7 +549,6 @@ export default function FormularioLogin() {
           >
             <div className="w-1.5 h-20 rounded-full bg-primary/70 hs-door-seam" />
           </div>
-          {/* Hoja derecha */}
           <div
             className={`w-1/2 h-full hs-door-panel border-l-2 border-primary/70 transition-transform duration-300 ease-in-out flex items-center justify-start pl-3 ${
               compuertaCerrada ? 'translate-x-0' : 'translate-x-full'
@@ -401,7 +557,6 @@ export default function FormularioLogin() {
             <div className="w-1.5 h-20 rounded-full bg-primary/70 hs-door-seam" />
           </div>
 
-          {/* Escáner central sobre la compuerta cerrada */}
           <div
             className={`absolute inset-0 flex flex-col items-center justify-center px-6 text-center transition-opacity duration-200 ${
               compuertaCerrada ? 'opacity-100' : 'opacity-0'
@@ -418,7 +573,7 @@ export default function FormularioLogin() {
           </div>
         </div>
 
-        {/* Overlay realista de escaneo durante peticiones al backend */}
+        {/* Overlay de escaneo durante peticiones */}
         {cargando && !compuertaCerrada && (
           <div className="absolute inset-0 z-20 bg-surface-card/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
             <div className="relative w-16 h-16 rounded-2xl border border-primary/40 bg-primary/10 flex items-center justify-center overflow-hidden mb-3">
@@ -469,9 +624,9 @@ export default function FormularioLogin() {
                 </div>
               )}
 
-              {/* MODO 0: SETUP INICIAL DE SUPERADMIN (1 sola vez cuando no hay usuarios) */}
+              {/* MODO 0: SETUP INICIAL DE SUPERADMIN */}
               {modo === 'setup' && (
-                <form onSubmit={manejarSetupInicial} className="flex flex-col gap-4">
+                <form onSubmit={manejarSetupInicial} className="flex flex-col gap-3.5">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-lg font-semibold text-text-primary">
@@ -486,10 +641,11 @@ export default function FormularioLogin() {
                     </span>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-text-muted">Usuario Superadmin</label>
                     <input
                       type="text"
+                      autoComplete="username"
                       value={usuarioNuevo}
                       onChange={(e) => setUsuarioNuevo(e.target.value)}
                       placeholder="hebert"
@@ -498,31 +654,64 @@ export default function FormularioLogin() {
                     />
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-text-muted">
-                      Contraseña maestra (mín. 8 caracteres)
-                    </label>
-                    <input
-                      type="password"
-                      value={contrasenaNueva}
-                      onChange={(e) => setContrasenaNueva(e.target.value)}
-                      placeholder="••••••••••••"
-                      className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 px-3.5 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      required
-                    />
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-text-muted">Contraseña maestra</label>
+                    <div className="relative">
+                      <input
+                        type={mostrarNueva ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        value={contrasenaNueva}
+                        onChange={(e) => setContrasenaNueva(e.target.value)}
+                        placeholder="Ej: HomeLab@2026"
+                        className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 pl-3.5 pr-10 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMostrarNueva((p) => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text-primary cursor-pointer"
+                        aria-label={mostrarNueva ? 'Ocultar contraseña' : 'Ver contraseña'}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">
+                          {mostrarNueva ? 'visibility_off' : 'visibility'}
+                        </span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
+                  <IndicadorFortaleza clave={contrasenaNueva} />
+
+                  <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-text-muted">Confirmar contraseña</label>
-                    <input
-                      type="password"
-                      value={confirmarContrasena}
-                      onChange={(e) => setConfirmarContrasena(e.target.value)}
-                      placeholder="••••••••••••"
-                      className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 px-3.5 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type={mostrarConfirmar ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        value={confirmarContrasena}
+                        onChange={(e) => setConfirmarContrasena(e.target.value)}
+                        placeholder="Repite tu contraseña"
+                        className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 pl-3.5 pr-10 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMostrarConfirmar((p) => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text-primary cursor-pointer"
+                        aria-label={mostrarConfirmar ? 'Ocultar confirmación' : 'Ver confirmación'}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">
+                          {mostrarConfirmar ? 'visibility_off' : 'visibility'}
+                        </span>
+                      </button>
+                    </div>
                   </div>
+
+                  <SelectorRecordarSesion
+                    recordar={recordarSesion}
+                    setRecordar={setRecordarSesion}
+                    dias={diasRecordar}
+                    setDias={setDiasRecordar}
+                  />
 
                   <button
                     type="submit"
@@ -603,6 +792,13 @@ export default function FormularioLogin() {
                       </button>
                     </div>
                   </div>
+
+                  <SelectorRecordarSesion
+                    recordar={recordarSesion}
+                    setRecordar={setRecordarSesion}
+                    dias={diasRecordar}
+                    setDias={setDiasRecordar}
+                  />
 
                   <button
                     type="submit"
@@ -767,6 +963,7 @@ export default function FormularioLogin() {
                     <label className="text-xs font-medium text-text-muted">Nombre de usuario</label>
                     <input
                       type="text"
+                      autoComplete="username"
                       value={usuarioNuevo}
                       onChange={(e) => setUsuarioNuevo(e.target.value)}
                       placeholder="colaborador.dev"
@@ -778,27 +975,62 @@ export default function FormularioLogin() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-medium text-text-muted">Contraseña</label>
-                      <input
-                        type="password"
-                        value={contrasenaNueva}
-                        onChange={(e) => setContrasenaNueva(e.target.value)}
-                        placeholder="Mín. 8 chars"
-                        className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 px-3 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                        required
-                      />
+                      <div className="relative">
+                        <input
+                          type={mostrarNueva ? 'text' : 'password'}
+                          autoComplete="new-password"
+                          value={contrasenaNueva}
+                          onChange={(e) => setContrasenaNueva(e.target.value)}
+                          placeholder="Ej: Dev@2026"
+                          className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 pl-3 pr-9 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setMostrarNueva((p) => !p)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-dim hover:text-text-primary cursor-pointer"
+                          aria-label={mostrarNueva ? 'Ocultar' : 'Ver'}
+                        >
+                          <span className="material-symbols-outlined text-[17px]">
+                            {mostrarNueva ? 'visibility_off' : 'visibility'}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-medium text-text-muted">Confirmar</label>
-                      <input
-                        type="password"
-                        value={confirmarContrasena}
-                        onChange={(e) => setConfirmarContrasena(e.target.value)}
-                        placeholder="Repetir clave"
-                        className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 px-3 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                        required
-                      />
+                      <div className="relative">
+                        <input
+                          type={mostrarConfirmar ? 'text' : 'password'}
+                          autoComplete="new-password"
+                          value={confirmarContrasena}
+                          onChange={(e) => setConfirmarContrasena(e.target.value)}
+                          placeholder="Repetir clave"
+                          className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 pl-3 pr-9 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setMostrarConfirmar((p) => !p)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-dim hover:text-text-primary cursor-pointer"
+                          aria-label={mostrarConfirmar ? 'Ocultar' : 'Ver'}
+                        >
+                          <span className="material-symbols-outlined text-[17px]">
+                            {mostrarConfirmar ? 'visibility_off' : 'visibility'}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   </div>
+
+                  <IndicadorFortaleza clave={contrasenaNueva} />
+
+                  <SelectorRecordarSesion
+                    recordar={recordarSesion}
+                    setRecordar={setRecordarSesion}
+                    dias={diasRecordar}
+                    setDias={setDiasRecordar}
+                  />
 
                   <button
                     type="submit"
@@ -811,7 +1043,7 @@ export default function FormularioLogin() {
                 </form>
               )}
 
-              {/* MODO 3: RECUPERAR CONTRASEÑA CON 2FA (TOTP DEL AUTENTICADOR) */}
+              {/* MODO 3: RECUPERAR CONTRASEÑA CON 2FA (TOTP) */}
               {modo === 'recuperar' && (
                 <form onSubmit={manejarRecuperarTotp} className="flex flex-col gap-3.5">
                   <div className="flex items-center justify-between">
@@ -857,27 +1089,55 @@ export default function FormularioLogin() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-medium text-text-muted">Nueva contraseña</label>
-                      <input
-                        type="password"
-                        value={nuevaContrasenaRecuperar}
-                        onChange={(e) => setNuevaContrasenaRecuperar(e.target.value)}
-                        placeholder="Mín. 8 chars"
-                        className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 px-3 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                        required
-                      />
+                      <div className="relative">
+                        <input
+                          type={mostrarNueva ? 'text' : 'password'}
+                          autoComplete="new-password"
+                          value={nuevaContrasenaRecuperar}
+                          onChange={(e) => setNuevaContrasenaRecuperar(e.target.value)}
+                          placeholder="Ej: Nueva@2026"
+                          className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 pl-3 pr-9 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setMostrarNueva((p) => !p)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-dim hover:text-text-primary cursor-pointer"
+                          aria-label={mostrarNueva ? 'Ocultar' : 'Ver'}
+                        >
+                          <span className="material-symbols-outlined text-[17px]">
+                            {mostrarNueva ? 'visibility_off' : 'visibility'}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-medium text-text-muted">Confirmar</label>
-                      <input
-                        type="password"
-                        value={confirmarRecuperar}
-                        onChange={(e) => setConfirmarRecuperar(e.target.value)}
-                        placeholder="Repetir clave"
-                        className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 px-3 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                        required
-                      />
+                      <div className="relative">
+                        <input
+                          type={mostrarConfirmar ? 'text' : 'password'}
+                          autoComplete="new-password"
+                          value={confirmarRecuperar}
+                          onChange={(e) => setConfirmarRecuperar(e.target.value)}
+                          placeholder="Repetir clave"
+                          className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 pl-3 pr-9 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setMostrarConfirmar((p) => !p)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-dim hover:text-text-primary cursor-pointer"
+                          aria-label={mostrarConfirmar ? 'Ocultar' : 'Ver'}
+                        >
+                          <span className="material-symbols-outlined text-[17px]">
+                            {mostrarConfirmar ? 'visibility_off' : 'visibility'}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   </div>
+
+                  <IndicadorFortaleza clave={nuevaContrasenaRecuperar} />
 
                   <button
                     type="submit"
