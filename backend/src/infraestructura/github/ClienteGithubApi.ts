@@ -64,40 +64,47 @@ export class ClienteGithubApi implements ClienteGithub {
   }
 
   public async listarRepositorios(token: string): Promise<RepositorioGithub[]> {
-    const respuesta = await this.solicitar(
-      '/user/repos?per_page=30&sort=pushed&affiliation=owner,collaborator,organization_member',
-      token,
-    );
-    if (respuesta.status === 401 || respuesta.status === 403) {
-      throw new ErrorGithubTokenInvalido();
-    }
-    if (!respuesta.ok) {
-      throw new ErrorGithubNoDisponible();
-    }
+    const repos: RepoApi[] = [];
+    for (let pagina = 1; pagina <= 5; pagina++) {
+      const respuesta = await this.solicitar(
+        `/user/repos?per_page=100&page=${pagina}&sort=pushed&affiliation=owner,collaborator,organization_member`,
+        token,
+      );
+      if (respuesta.status === 401 || respuesta.status === 403) {
+        throw new ErrorGithubTokenInvalido();
+      }
+      if (!respuesta.ok) {
+        throw new ErrorGithubNoDisponible();
+      }
 
-    const repos = (await respuesta.json()) as RepoApi[];
+      const lote = (await respuesta.json()) as RepoApi[];
+      repos.push(...lote);
+      if (lote.length < 100) break;
+    }
 
     return Promise.all(
-      repos.map(async (repo): Promise<RepositorioGithub> => {
+      repos.map(async (repo, indice): Promise<RepositorioGithub> => {
         let ultimoCommit: RepositorioGithub['ultimoCommit'] = null;
-        try {
-          const resCommit = await this.solicitar(
-            `/repos/${repo.full_name}/commits?per_page=1&sha=${encodeURIComponent(repo.default_branch)}`,
-            token,
-          );
-          if (resCommit.ok) {
-            const commits = (await resCommit.json()) as CommitApi[];
-            const primero = commits[0];
-            if (primero) {
-              ultimoCommit = {
-                sha: primero.sha.slice(0, 7),
-                mensaje: primero.commit.message.split('\n')[0].slice(0, 120),
-                fecha: primero.commit.author?.date ?? '',
-              };
+        if (indice < 20) {
+          try {
+            const resCommit = await this.solicitar(
+              `/repos/${repo.full_name}/commits?per_page=1&sha=${encodeURIComponent(repo.default_branch)}`,
+              token,
+            );
+            if (resCommit.ok) {
+              const commits = (await resCommit.json()) as CommitApi[];
+              const primero = commits[0];
+              if (primero) {
+                ultimoCommit = {
+                  sha: primero.sha.slice(0, 7),
+                  mensaje: primero.commit.message.split('\n')[0].slice(0, 120),
+                  fecha: primero.commit.author?.date ?? '',
+                };
+              }
             }
+          } catch {
+            ultimoCommit = null;
           }
-        } catch {
-          ultimoCommit = null;
         }
         return {
           id: repo.id,
