@@ -27,21 +27,22 @@ export const esquemaPlanHosting = z.object({
 });
 
 export const esquemaConfigCobro = z.object({
-  habilitarQr: z.boolean().default(true),
-  habilitarTransferencia: z.boolean().default(true),
-  habilitarEfectivo: z.boolean().default(true),
-  banco: z.string().trim().max(120).default(''),
-  titular: z.string().trim().max(120).default(''),
-  numeroCuenta: z.string().trim().max(80).default(''),
+  habilitarQr: z.coerce.boolean().default(true),
+  habilitarTransferencia: z.coerce.boolean().default(true),
+  habilitarEfectivo: z.coerce.boolean().default(true),
+  banco: z.string().trim().max(200).optional().default(''),
+  titular: z.string().trim().max(200).optional().default(''),
+  numeroCuenta: z.string().trim().max(120).optional().default(''),
   qrImagenDataUrl: z
     .string()
-    .max(550_000, 'La imagen QR es demasiado pesada (máx ~400 KB)')
+    .max(1_200_000, 'La imagen QR es demasiado pesada (máx ~900 KB)')
     .refine(
       (v) => v === '' || /^data:image\/(png|jpeg|jpg|webp);base64,/i.test(v),
       'La imagen QR debe ser PNG, JPG o WEBP',
     )
+    .optional()
     .default(''),
-  instrucciones: z.string().trim().max(600).default(''),
+  instrucciones: z.string().trim().max(1000).optional().default(''),
 });
 
 export const esquemaCrearSolicitud = z.object({

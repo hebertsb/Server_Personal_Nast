@@ -105,10 +105,16 @@ async function solicitar<T>(ruta: string, opciones: OpcionesSolicitud = {}): Pro
 
   if (!respuesta.ok) {
     const cuerpoError = datos as CuerpoErrorApi | null;
-    const mensaje =
+    const baseMensaje =
       cuerpoError?.error?.mensaje || `Error en la solicitud (HTTP ${respuesta.status})`;
+    const detalles = cuerpoError?.error?.detalles;
+    const detalleTexto =
+      Array.isArray(detalles) && detalles.length > 0
+        ? ` (${detalles.map((d) => `${d.campo ? `${d.campo}: ` : ''}${d.mensaje || ''}`).join('; ')})`
+        : '';
+    const mensaje = `${baseMensaje}${detalleTexto}`;
     const codigo = cuerpoError?.error?.codigo || 'ERROR_HTTP';
-    throw new ErrorApi(mensaje, respuesta.status, codigo, cuerpoError?.error?.detalles);
+    throw new ErrorApi(mensaje, respuesta.status, codigo, detalles);
   }
 
   return datos as T;

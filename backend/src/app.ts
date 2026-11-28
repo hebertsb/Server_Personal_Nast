@@ -44,7 +44,7 @@ export function crearAplicacion(opciones: OpcionesApp): Express {
   );
   app.use(
     express.json({
-      limit: '1mb',
+      limit: '2mb',
       verify: (req, _res, buf) => {
         (req as Request & { cuerpoCrudo?: Buffer }).cuerpoCrudo = buf;
       },

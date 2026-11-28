@@ -604,8 +604,21 @@ export default function PlanesYSuscripcion() {
   const manejarGuardarCobro = async () => {
     if (!tokenAcceso || !esSuperadmin) return;
     setGuardandoCobro(true);
+    setError(null);
     try {
-      await planesServicio.guardarCobro(cobro, tokenAcceso);
+      await planesServicio.guardarCobro(
+        {
+          habilitarQr: Boolean(cobro.habilitarQr),
+          habilitarTransferencia: Boolean(cobro.habilitarTransferencia),
+          habilitarEfectivo: Boolean(cobro.habilitarEfectivo),
+          banco: (cobro.banco || '').trim(),
+          titular: (cobro.titular || '').trim(),
+          numeroCuenta: (cobro.numeroCuenta || '').trim(),
+          qrImagenDataUrl: cobro.qrImagenDataUrl || '',
+          instrucciones: (cobro.instrucciones || '').trim(),
+        },
+        tokenAcceso,
+      );
       setAviso('Configuración de cobro (QR / Banco / Efectivo) guardada correctamente.');
     } catch (err) {
       setError(err instanceof ErrorApi ? err.message : 'No se pudo guardar la configuración de cobro');

@@ -299,7 +299,7 @@ export async function recortarQrBancarioDesdeArchivo(archivo: File): Promise<Res
   const sy = Math.max(0, Math.floor(cy - lado / 2));
   const sLado = Math.min(wOrig - sx, hOrig - sy, Math.ceil(lado));
 
-  const outSize = 560;
+  const outSize = 480;
   const margenBlanco = Math.round(outSize * 0.05);
   const innerSize = outSize - margenBlanco * 2;
   const out = document.createElement('canvas');
@@ -321,10 +321,10 @@ export async function recortarQrBancarioDesdeArchivo(archivo: File): Promise<Res
   octx.imageSmoothingEnabled = false;
   octx.drawImage(img, sx, sy, sLado, sLado, margenBlanco, margenBlanco, innerSize, innerSize);
 
-  // PNG nítido si pesa poco, o JPEG alta calidad si excede 220 KB
+  // PNG nítido si pesa poco, o JPEG alta calidad para mantenerlo liviano (< 180 KB)
   let dataUrl = out.toDataURL('image/png');
-  if (dataUrl.length > 300_000) {
-    dataUrl = out.toDataURL('image/jpeg', 0.92);
+  if (dataUrl.length > 220_000) {
+    dataUrl = out.toDataURL('image/jpeg', 0.88);
   }
 
   return { dataUrl, imagenParaOcr, recortado: true, anchoOriginal: wOrig, altoOriginal: hOrig };
