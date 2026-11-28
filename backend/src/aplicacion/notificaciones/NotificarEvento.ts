@@ -53,8 +53,12 @@ export class NotificarEvento {
       (c) => c.tipoEvento === evento.tipoEvento && c.habilitado,
     );
 
-    // Si es un reporte de despliegue y aún no existe regla explícita, hereda los canales activos de rollback
-    if (activas.length === 0 && evento.tipoEvento === 'despliegue_reporte') {
+    // Si es reporte de despliegue o avance de portafolio y aún no existe regla explícita, hereda los canales activos
+    if (
+      activas.length === 0 &&
+      (evento.tipoEvento === 'despliegue_reporte' ||
+        evento.tipoEvento === 'portafolio_actualizacion')
+    ) {
       activas = configuraciones.filter(
         (c) => c.tipoEvento === 'despliegue_rollback_automatico' && c.habilitado,
       );

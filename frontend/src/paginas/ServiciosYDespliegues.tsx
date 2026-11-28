@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import PanelDesplieguesGithub from '../componentes/despliegues/PanelDesplieguesGithub';
+import PanelPortafolioProyectos from '../componentes/despliegues/PanelPortafolioProyectos';
 import { usarAutenticacion } from '../contexto/ContextoAutenticacion';
 import { usarContenedores } from '../hooks/usarContenedores';
 import { ErrorApi } from '../servicios/apiCliente';
@@ -10,7 +11,7 @@ import {
   EstadoContenedor,
 } from '../tipos/Contenedor';
 
-type PestanaModulo = 'contenedores' | 'despliegues';
+type PestanaModulo = 'contenedores' | 'despliegues' | 'portafolio';
 type FiltroEstado = 'todos' | 'activos' | 'detenidos' | 'problemas';
 
 interface ConfirmacionAccion {
@@ -307,9 +308,19 @@ export default function ServiciosYDespliegues() {
             >
               <span className="material-symbols-outlined text-[16px]">rocket_launch</span>
               <span>Despliegues GitHub</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface-card-elevated text-text-dim">
-                Fase 3
-              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPestana('portafolio')}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                pestana === 'portafolio'
+                  ? 'bg-primary text-[var(--hs-on-accent)] shadow-xs'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">folder_managed</span>
+              <span>Proyectos y Pendientes</span>
             </button>
           </div>
 
@@ -320,6 +331,8 @@ export default function ServiciosYDespliegues() {
 
         {pestana === 'despliegues' ? (
           <PanelDesplieguesGithub />
+        ) : pestana === 'portafolio' ? (
+          <PanelPortafolioProyectos />
         ) : (
           <>
             {/* KPIs minimalistas estilo Ballast / Veyra */}

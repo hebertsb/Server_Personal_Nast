@@ -30,6 +30,14 @@ import {
   IaMcpController,
 } from './controladores/IaMcpController';
 import { HealthController } from './controladores/HealthController';
+import {
+  esquemaActualizarComponentePortafolio,
+  esquemaActualizarTareaPortafolio,
+  esquemaCrearComponentePortafolio,
+  esquemaCrearProyectoPortafolio,
+  esquemaCrearTareaPortafolio,
+  PortafolioController,
+} from './controladores/PortafolioController';
 import { RecursosController } from './controladores/RecursosController';
 import {
   esquemaActualizarNotificacion,
@@ -76,6 +84,7 @@ export interface DependenciasRutas {
   desplieguesController: DesplieguesController;
   automatizacionesController: AutomatizacionesController;
   iaMcpController: IaMcpController;
+  portafolioController?: PortafolioController;
   healthController: HealthController;
   middlewareAutenticacion: RequestHandler;
   limitadorLogin: RequestHandler;
@@ -431,6 +440,64 @@ export function crearRutas(deps: DependenciasRutas): Router {
   );
 
   // Fase 4: Automatización de servicios y reglas condición-acción (RF-51 a RF-53)
+  if (deps.portafolioController) {
+    routerApiV1.get(
+      '/portafolio',
+      deps.middlewareAutenticacion,
+      deps.portafolioController.obtenerResumen,
+    );
+    routerApiV1.post(
+      '/portafolio/autodetectar',
+      deps.middlewareAutenticacion,
+      deps.portafolioController.autodetectar,
+    );
+    routerApiV1.post(
+      '/portafolio/proyectos',
+      deps.middlewareAutenticacion,
+      validarCuerpo(esquemaCrearProyectoPortafolio),
+      deps.portafolioController.crearProyecto,
+    );
+    routerApiV1.delete(
+      '/portafolio/proyectos/:id',
+      deps.middlewareAutenticacion,
+      deps.portafolioController.eliminarProyecto,
+    );
+    routerApiV1.post(
+      '/portafolio/proyectos/:id/componentes',
+      deps.middlewareAutenticacion,
+      validarCuerpo(esquemaCrearComponentePortafolio),
+      deps.portafolioController.crearComponente,
+    );
+    routerApiV1.patch(
+      '/portafolio/componentes/:compId',
+      deps.middlewareAutenticacion,
+      validarCuerpo(esquemaActualizarComponentePortafolio),
+      deps.portafolioController.actualizarComponente,
+    );
+    routerApiV1.delete(
+      '/portafolio/componentes/:compId',
+      deps.middlewareAutenticacion,
+      deps.portafolioController.eliminarComponente,
+    );
+    routerApiV1.post(
+      '/portafolio/proyectos/:id/tareas',
+      deps.middlewareAutenticacion,
+      validarCuerpo(esquemaCrearTareaPortafolio),
+      deps.portafolioController.crearTarea,
+    );
+    routerApiV1.patch(
+      '/portafolio/tareas/:tareaId',
+      deps.middlewareAutenticacion,
+      validarCuerpo(esquemaActualizarTareaPortafolio),
+      deps.portafolioController.actualizarTarea,
+    );
+    routerApiV1.delete(
+      '/portafolio/tareas/:tareaId',
+      deps.middlewareAutenticacion,
+      deps.portafolioController.eliminarTarea,
+    );
+  }
+
   routerApiV1.use('/automatizaciones', deps.middlewareAutenticacion, requerirModulo('automatizacion'));
   routerApiV1.get(
     '/automatizaciones',

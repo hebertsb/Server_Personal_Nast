@@ -182,8 +182,10 @@ export default function AsistenteVozDrawer({
         <div className="px-4 py-2.5 border-b border-border-hairline flex flex-wrap gap-1.5">
           {[
             '¿Cómo está el servidor?',
+            '¿Qué proyectos tengo a medias?',
+            '¿Cuánta RAM consume cada proyecto?',
+            '¿Cuál proyecto tiene Landing Page?',
             'Resumen diario de seguridad',
-            'Estado de contenedores',
           ].map((sug) => (
             <button
               key={sug}

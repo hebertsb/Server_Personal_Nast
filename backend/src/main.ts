@@ -15,6 +15,7 @@ import { AsistenteIA } from './aplicacion/ia/AsistenteIA';
 import { EjecutorHerramientasMcp } from './aplicacion/mcp/EjecutorHerramientasMcp';
 import { GestionarTokensMcp } from './aplicacion/mcp/GestionarTokensMcp';
 import { NotificarEvento } from './aplicacion/notificaciones/NotificarEvento';
+import { GestionarPortafolioProyectos } from './aplicacion/portafolio/GestionarPortafolioProyectos';
 import { ObtenerHistoricoRecursos } from './aplicacion/recursos/ObtenerHistoricoRecursos';
 import { ObtenerRecursosHost } from './aplicacion/recursos/ObtenerRecursosHost';
 import { ConsultarSeguridad } from './aplicacion/seguridad/ConsultarSeguridad';
@@ -45,6 +46,7 @@ import { RepositorioConexionGithubPostgres } from './infraestructura/postgres/Re
 import { RepositorioContenedoresPostgres } from './infraestructura/postgres/RepositorioContenedoresPostgres';
 import { RepositorioDesplieguesPostgres } from './infraestructura/postgres/RepositorioDesplieguesPostgres';
 import { RepositorioEventosPostgres } from './infraestructura/postgres/RepositorioEventosPostgres';
+import { RepositorioPortafolioPostgres } from './infraestructura/postgres/RepositorioPortafolioPostgres';
 import { RepositorioRecursosHostPostgres } from './infraestructura/postgres/RepositorioRecursosHostPostgres';
 import { RepositorioSeguridad2FAPostgres } from './infraestructura/postgres/RepositorioSeguridad2FAPostgres';
 import { RepositorioSeguridadRedPostgres } from './infraestructura/postgres/RepositorioSeguridadRedPostgres';
@@ -67,6 +69,7 @@ import { DesplieguesController } from './presentacion/controladores/DesplieguesC
 import { GithubController } from './presentacion/controladores/GithubController';
 import { HealthController } from './presentacion/controladores/HealthController';
 import { IaMcpController } from './presentacion/controladores/IaMcpController';
+import { PortafolioController } from './presentacion/controladores/PortafolioController';
 import { RecursosController } from './presentacion/controladores/RecursosController';
 import { SeguridadController } from './presentacion/controladores/SeguridadController';
 import { UsuariosController } from './presentacion/controladores/UsuariosController';
@@ -97,6 +100,7 @@ async function iniciarServidor(): Promise<void> {
   const repositorioDespliegues = new RepositorioDesplieguesPostgres(pool);
   const repositorioAutomatizaciones = new RepositorioAutomatizacionesPostgres(pool);
   const repositorioTokensMcp = new RepositorioTokensMcpPostgres(pool);
+  const repositorioPortafolio = new RepositorioPortafolioPostgres(pool);
 
   const servicioHash = new ServicioHashBcrypt();
   const servicioCifrado = new ServicioCifradoAes(config.ENCRYPTION_KEY);
@@ -261,6 +265,11 @@ async function iniciarServidor(): Promise<void> {
     ollamaUrl: config.IA_OLLAMA_URL,
     modelo: config.IA_MODELO,
   });
+  const casoUsoPortafolio = new GestionarPortafolioProyectos(
+    repositorioPortafolio,
+    colectorDocker,
+    notificarEvento,
+  );
   const casoUsoAsistenteIA = new AsistenteIA(
     proveedorIA,
     repositorioDespliegues,
@@ -268,6 +277,7 @@ async function iniciarServidor(): Promise<void> {
     repositorioSeguridadRed,
     colectorRecursosHost,
     colectorDocker,
+    casoUsoPortafolio,
   );
   const casoUsoTokensMcp = new GestionarTokensMcp(repositorioTokensMcp, repositorioAuditoria);
   const ejecutorMcp = new EjecutorHerramientasMcp(
@@ -277,6 +287,7 @@ async function iniciarServidor(): Promise<void> {
     casoUsoProyectosDespliegue,
     casoUsoAsistenteIA,
     repositorioAuditoria,
+    casoUsoPortafolio,
   );
 
   const esProduccion = config.NODE_ENV === 'production';
@@ -335,6 +346,7 @@ async function iniciarServidor(): Promise<void> {
     casoUsoTokensMcp,
     ejecutorMcp,
   );
+  const portafolioController = new PortafolioController(casoUsoPortafolio);
   const healthController = new HealthController({
     verificarPostgres: () => verificarConexionPostgres(pool),
     verificarDocker: () => colectorDocker.verificarConexion(),
@@ -374,6 +386,7 @@ async function iniciarServidor(): Promise<void> {
       desplieguesController,
       automatizacionesController,
       iaMcpController,
+      portafolioController,
       healthController,
       middlewareAutenticacion,
       limitadorLogin,

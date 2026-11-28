@@ -40,6 +40,7 @@ const ETIQUETAS_EVENTO: Record<string, string> = {
   gate_seguridad_bloqueado: 'Gate de seguridad bloqueó despliegue',
   despliegue_rollback_automatico: 'Rollback automático por fallo de health check',
   despliegue_reporte: 'Reporte de despliegue (Salud Antes vs. Después)',
+  portafolio_actualizacion: 'Avances y pendientes del Portafolio de Proyectos',
 };
 
 export default function ConfiguracionGeneral() {

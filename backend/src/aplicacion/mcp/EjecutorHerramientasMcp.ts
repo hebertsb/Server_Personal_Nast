@@ -9,6 +9,7 @@ import { ListarContenedores } from '../contenedores/ListarContenedores';
 import { GestionarProyectosDespliegue } from '../despliegues/GestionarProyectosDespliegue';
 import { AsistenteIA } from '../ia/AsistenteIA';
 import { ObtenerRecursosHost } from '../recursos/ObtenerRecursosHost';
+import { GestionarPortafolioProyectos } from '../portafolio/GestionarPortafolioProyectos';
 import { ConsultarSeguridad } from '../seguridad/ConsultarSeguridad';
 
 const esquemaGuardarVarMcp = z.object({
@@ -98,6 +99,13 @@ export const HERRAMIENTAS_MCP: HerramientaMcpDef[] = [
     },
   },
   {
+    name: 'consultar_portafolio_proyectos',
+    description:
+      'Devuelve el portafolio agrupado por proyecto con consumo total de RAM/CPU, estado de componentes (Sistema, Landing, Demo, API, BD) y lista de pendientes por completar.',
+    permisoRequerido: 'lectura',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
     name: 'sugerir_puerto_libre',
     description:
       'Inspecciona contenedores Docker activos y proyectos registrados para devolver el próximo puerto libre disponible (ej. 4100+) sin colisiones.',
@@ -176,6 +184,7 @@ export class EjecutorHerramientasMcp {
     private readonly casoUsoProyectos: GestionarProyectosDespliegue,
     private readonly asistenteIA: AsistenteIA,
     private readonly auditoria: RepositorioAuditoria,
+    private readonly casoUsoPortafolio?: GestionarPortafolioProyectos,
   ) {}
 
   public listarHerramientas(token: TokenMcpPersistido): HerramientaMcpDef[] {
@@ -255,6 +264,12 @@ export class EjecutorHerramientasMcp {
       case 'consultar_asistente_voz': {
         const pregunta = String(argumentos.pregunta ?? '¿Cómo está el servidor?');
         resultado = await this.asistenteIA.consultarAsistente(pregunta);
+        break;
+      }
+      case 'consultar_portafolio_proyectos': {
+        resultado = this.casoUsoPortafolio
+          ? await this.casoUsoPortafolio.obtenerResumenCompleto()
+          : { totalProyectos: 0, proyectos: [] };
         break;
       }
       case 'sugerir_puerto_libre': {
