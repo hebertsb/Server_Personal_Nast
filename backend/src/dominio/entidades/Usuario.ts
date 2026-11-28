@@ -51,6 +51,11 @@ export interface PropiedadesUsuario {
   versionSesion?: number;
   telegramChatId?: string;
   whatsappNumero?: string;
+  planNombre?: string;
+  cuotaRamMb?: number;
+  cuotaCpu?: number;
+  maxProyectos?: number;
+  iaBasicaHabilitada?: boolean;
 }
 
 export interface PerfilUsuarioPublico {
@@ -65,6 +70,11 @@ export interface PerfilUsuarioPublico {
   ultimaIpAcceso: string | null;
   telegramChatId: string;
   whatsappNumero: string;
+  planNombre: string;
+  cuotaRamMb: number;
+  cuotaCpu: number;
+  maxProyectos: number;
+  iaBasicaHabilitada: boolean;
 }
 
 /**
@@ -86,6 +96,11 @@ export class Usuario {
   public readonly versionSesion: number;
   public readonly telegramChatId: string;
   public readonly whatsappNumero: string;
+  public readonly planNombre: string;
+  public readonly cuotaRamMb: number;
+  public readonly cuotaCpu: number;
+  public readonly maxProyectos: number;
+  public readonly iaBasicaHabilitada: boolean;
 
   constructor(props: PropiedadesUsuario) {
     this.id = props.id;
@@ -105,6 +120,11 @@ export class Usuario {
     this.versionSesion = props.versionSesion ?? 1;
     this.telegramChatId = props.telegramChatId ?? '';
     this.whatsappNumero = props.whatsappNumero ?? '';
+    this.planNombre = props.planNombre ?? (props.rol === 'superadmin' ? 'ilimitado' : 'basico');
+    this.cuotaRamMb = props.cuotaRamMb ?? (props.rol === 'superadmin' ? 4096 : 512);
+    this.cuotaCpu = props.cuotaCpu ?? (props.rol === 'superadmin' ? 4 : 0.75);
+    this.maxProyectos = props.maxProyectos ?? (props.rol === 'superadmin' ? 50 : 2);
+    this.iaBasicaHabilitada = props.iaBasicaHabilitada ?? props.rol === 'superadmin';
   }
 
   /** Indica si el usuario puede acceder a un módulo específico. */
@@ -128,6 +148,11 @@ export class Usuario {
       ultimaIpAcceso: this.ultimaIpAcceso,
       telegramChatId: this.telegramChatId,
       whatsappNumero: this.whatsappNumero,
+      planNombre: this.planNombre,
+      cuotaRamMb: this.cuotaRamMb,
+      cuotaCpu: this.cuotaCpu,
+      maxProyectos: this.maxProyectos,
+      iaBasicaHabilitada: this.iaBasicaHabilitada,
     };
   }
 }

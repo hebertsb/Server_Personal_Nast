@@ -49,6 +49,14 @@ export const esquemaContactoUsuario = z.object({
     .default(''),
 });
 
+export const esquemaPlanUsuario = z.object({
+  planNombre: z.string().trim().min(2).max(40).default('basico'),
+  cuotaRamMb: z.coerce.number().int().min(128).max(8192).default(512),
+  cuotaCpu: z.coerce.number().min(0.25).max(8).default(0.75),
+  maxProyectos: z.coerce.number().int().min(1).max(100).default(2),
+  iaBasicaHabilitada: z.boolean().default(false),
+});
+
 /** Controlador HTTP para la gestión de usuarios, roles, permisos e invitaciones (Superadmin). */
 export class UsuariosController {
   constructor(private readonly casoUso: GestionarAccesoYUsuarios) {}
@@ -276,6 +284,38 @@ export class UsuariosController {
         usuarioId: validacion.data.id,
         telegramChatId: datos.telegramChatId,
         whatsappNumero: datos.whatsappNumero,
+        actorId: actor.sub,
+        actorRol: actor.rol,
+        direccionIp,
+      });
+      res.status(200).json({ usuario });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public actualizarPlan = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const actor = req.usuarioAutenticado;
+      if (!actor) throw new ErrorTokenInvalido();
+      const validacion = esquemaParametroUuid.safeParse(req.params);
+      if (!validacion.success) {
+        res.status(400).json({ error: { codigo: 'VALIDACION_FALLIDA', mensaje: 'ID inválido' } });
+        return;
+      }
+      const datos = req.body as z.infer<typeof esquemaPlanUsuario>;
+      const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
+      const usuario = await this.casoUso.actualizarPlanUsuario({
+        usuarioId: validacion.data.id,
+        planNombre: datos.planNombre,
+        cuotaRamMb: datos.cuotaRamMb,
+        cuotaCpu: datos.cuotaCpu,
+        maxProyectos: datos.maxProyectos,
+        iaBasicaHabilitada: datos.iaBasicaHabilitada,
         actorId: actor.sub,
         actorRol: actor.rol,
         direccionIp,

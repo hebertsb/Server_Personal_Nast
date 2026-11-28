@@ -558,4 +558,48 @@ export class GestionarAccesoYUsuarios {
     });
     return actualizado.aPerfilPublico();
   }
+
+  public async actualizarPlanUsuario(entrada: {
+    usuarioId: string;
+    planNombre: string;
+    cuotaRamMb: number;
+    cuotaCpu: number;
+    maxProyectos: number;
+    iaBasicaHabilitada: boolean;
+    actorId: string;
+    actorRol: RolUsuario;
+    direccionIp: string;
+  }): Promise<PerfilUsuarioPublico> {
+    if (entrada.actorRol !== 'superadmin') {
+      throw new ErrorPermisoDenegado('Solo el superadmin puede modificar planes y cuotas');
+    }
+    if (!this.repositorioUsuarios.actualizarPlanCuota) {
+      throw new ErrorDominio('NO_SOPORTADO', 'No se pudo actualizar el plan', 500);
+    }
+    const actualizado = await this.repositorioUsuarios.actualizarPlanCuota(entrada.usuarioId, {
+      planNombre: entrada.planNombre,
+      cuotaRamMb: entrada.cuotaRamMb,
+      cuotaCpu: entrada.cuotaCpu,
+      maxProyectos: entrada.maxProyectos,
+      iaBasicaHabilitada: entrada.iaBasicaHabilitada,
+    });
+    if (!actualizado) {
+      throw new ErrorDominio('USUARIO_NO_ENCONTRADO', 'Usuario no encontrado', 404);
+    }
+    await this.repositorioAuditoria.registrar({
+      usuarioId: entrada.actorId,
+      accion: 'actualizar_plan_usuario',
+      recurso: `usuario:${actualizado.nombreUsuario}`,
+      origen: 'web',
+      direccionIp: entrada.direccionIp,
+      detalles: {
+        planNombre: actualizado.planNombre,
+        cuotaRamMb: actualizado.cuotaRamMb,
+        cuotaCpu: actualizado.cuotaCpu,
+        maxProyectos: actualizado.maxProyectos,
+        iaBasicaHabilitada: actualizado.iaBasicaHabilitada,
+      },
+    });
+    return actualizado.aPerfilPublico();
+  }
 }

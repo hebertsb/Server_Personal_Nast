@@ -107,6 +107,9 @@ export class EjecutorDespliegueDocker implements EjecutorDespliegue {
       const puertoContenedor =
         entrada.tipoProyecto === 'html_estatico' ? 80 : entrada.puerto;
 
+      const limiteRam = Math.min(8192, Math.max(128, Math.round(entrada.limiteRamMb ?? 512)));
+      const limiteCpu = Math.min(8, Math.max(0.25, Number(entrada.limiteCpu ?? 0.75)));
+
       const argsRun: string[] = [
         'run',
         '-d',
@@ -115,9 +118,9 @@ export class EjecutorDespliegueDocker implements EjecutorDespliegue {
         '--restart',
         'unless-stopped',
         '--memory',
-        '512m',
+        `${limiteRam}m`,
         '--cpus',
-        '0.75',
+        String(limiteCpu),
         '--pids-limit',
         '128',
         '--security-opt',
@@ -137,7 +140,13 @@ export class EjecutorDespliegueDocker implements EjecutorDespliegue {
 
       // Pasar únicamente los NOMBRES de variables en argv; los valores entran vía env del proceso
       const envSubproceso: NodeJS.ProcessEnv = { ...process.env };
-      for (const [clave, valor] of Object.entries(entrada.variablesEntorno)) {
+      const variablesFinales: Record<string, string> = { ...entrada.variablesEntorno };
+      if (entrada.gpuRemotaUrl && /^https?:\/\//i.test(entrada.gpuRemotaUrl.trim())) {
+        const gpuUrl = entrada.gpuRemotaUrl.trim();
+        if (!variablesFinales.OLLAMA_URL) variablesFinales.OLLAMA_URL = gpuUrl;
+        if (!variablesFinales.IA_REMOTE_URL) variablesFinales.IA_REMOTE_URL = gpuUrl;
+      }
+      for (const [clave, valor] of Object.entries(variablesFinales)) {
         if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(clave)) {
           argsRun.push('-e', clave);
           envSubproceso[clave] = valor;

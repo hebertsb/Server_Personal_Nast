@@ -25,6 +25,7 @@ import {
   DatosActualizarProyecto,
   RepositorioDespliegues,
 } from '../../dominio/interfaces/RepositorioDespliegues';
+import { RepositorioUsuarios } from '../../dominio/interfaces/RepositorioUsuarios';
 import { ServicioCifrado } from '../../dominio/interfaces/ServicioCifrado';
 import {
   ejecutarCadenaVerificacionDespliegue,
@@ -54,6 +55,7 @@ export interface EntradaConectarProyecto {
   puerto: number;
   carpetaRaiz?: string;
   subdominio?: string;
+  gpuRemotaUrl?: string;
   tipoProyecto?: TipoProyectoDespliegue;
   modoActualizacion: ModoActualizacionRepo;
   requiereAprobacion: boolean;
@@ -93,6 +95,7 @@ export class GestionarProyectosDespliegue {
       exitoso: boolean;
       ejecutadoPor: string;
     }) => Promise<void>,
+    private readonly repoUsuarios?: RepositorioUsuarios,
   ) {}
 
   /** Inspecciona puertos Docker activos + proyectos registrados y devuelve el próximo puerto libre. */
@@ -196,8 +199,13 @@ export class GestionarProyectosDespliegue {
     };
   }
 
-  public async listarProyectos(): Promise<ProyectoConectado[]> {
-    return this.repoDespliegues.listarProyectos();
+  public async listarProyectos(ctx?: ContextoDespliegue): Promise<ProyectoConectado[]> {
+    const todos = await this.repoDespliegues.listarProyectos();
+    if (!ctx || ctx.rol === 'superadmin' || ctx.rol === 'administrador') {
+      return todos;
+    }
+    // Aislamiento Multi-Tenant: clientes/colaboradores solo ven sus propios proyectos
+    return todos.filter((p) => p.usuarioId === ctx.usuarioId);
   }
 
   public async conectarProyecto(
@@ -205,6 +213,20 @@ export class GestionarProyectosDespliegue {
     ctx: ContextoDespliegue,
   ): Promise<{ proyecto: ProyectoConectado; despliegueInicial: DespliegueRegistro | null }> {
     this.exigirAdministrador(ctx);
+
+    // Verificar cuota máxima de proyectos del plan del usuario (Multi-Tenant SaaS)
+    if (ctx.rol !== 'superadmin' && ctx.rol !== 'administrador' && this.repoUsuarios) {
+      const usuarioDb = await this.repoUsuarios.buscarPorId(ctx.usuarioId).catch(() => null);
+      const maxProy = usuarioDb?.maxProyectos ?? 2;
+      const actuales = (await this.repoDespliegues.listarProyectos()).filter(
+        (p) => p.usuarioId === ctx.usuarioId,
+      ).length;
+      if (actuales >= maxProy) {
+        throw new ErrorTipoProyectoNoSoportado(
+          `Alcanzaste el límite de ${maxProy} proyecto(s) de tu plan "${usuarioDb?.planNombre ?? 'basico'}". Solicita un upgrade al administrador.`,
+        );
+      }
+    }
 
     const carpetaNormalizada = (entrada.carpetaRaiz ?? '/').replace(/^\/+|\/+$/g, '');
     const carpetaFinal = carpetaNormalizada ? `/${carpetaNormalizada}` : '/';
@@ -233,6 +255,7 @@ export class GestionarProyectosDespliegue {
       puerto: entrada.puerto,
       carpetaRaiz: carpetaFinal,
       subdominio: (entrada.subdominio ?? '').trim().toLowerCase(),
+      gpuRemotaUrl: (entrada.gpuRemotaUrl ?? '').trim(),
       tipoProyecto: tipoFinal,
       modoActualizacion: entrada.modoActualizacion,
       requiereAprobacion: entrada.requiereAprobacion,
@@ -555,6 +578,9 @@ export class GestionarProyectosDespliegue {
         throw new ErrorGithubNoConectado();
       }
       const tokenPlano = this.cifrado.descifrar(conexionGh.tokenCifrado);
+      const dueno = this.repoUsuarios
+        ? await this.repoUsuarios.buscarPorId(proyecto.usuarioId).catch(() => null)
+        : null;
       const resultadoReal = await this.ejecutorDespliegue.ejecutar({
         nombreProyecto: proyecto.nombreProyecto,
         nombreCompleto: proyecto.nombreCompleto,
@@ -563,6 +589,9 @@ export class GestionarProyectosDespliegue {
         puerto: proyecto.puerto,
         carpetaRaiz: proyecto.carpetaRaiz,
         subdominio: proyecto.subdominio,
+        gpuRemotaUrl: proyecto.gpuRemotaUrl,
+        limiteRamMb: dueno?.cuotaRamMb ?? 512,
+        limiteCpu: dueno?.cuotaCpu ?? 0.75,
         tipoProyecto: proyecto.tipoProyecto,
         plantillaDockerfile: plantilla,
         tokenGithub: tokenPlano,

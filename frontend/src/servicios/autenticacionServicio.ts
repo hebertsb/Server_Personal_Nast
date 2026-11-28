@@ -30,6 +30,11 @@ export interface UsuarioAutenticado {
   ultimaIpAcceso?: string | null;
   telegramChatId?: string;
   whatsappNumero?: string;
+  planNombre?: string;
+  cuotaRamMb?: number;
+  cuotaCpu?: number;
+  maxProyectos?: number;
+  iaBasicaHabilitada?: boolean;
 }
 
 export interface CredencialesLogin {

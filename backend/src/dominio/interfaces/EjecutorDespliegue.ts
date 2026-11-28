@@ -9,6 +9,9 @@ export interface EntradaEjecucionDespliegue {
   puerto: number;
   carpetaRaiz?: string;
   subdominio?: string;
+  gpuRemotaUrl?: string;
+  limiteRamMb?: number;
+  limiteCpu?: number;
   tipoProyecto: TipoProyectoDespliegue;
   plantillaDockerfile: string | null;
   tokenGithub: string;

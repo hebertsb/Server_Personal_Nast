@@ -29,6 +29,11 @@ interface FilaUsuario {
   version_sesion: number;
   telegram_chat_id?: string | null;
   whatsapp_numero?: string | null;
+  plan_nombre?: string | null;
+  cuota_ram_mb?: number | null;
+  cuota_cpu?: number | string | null;
+  max_proyectos?: number | null;
+  ia_basica_habilitada?: boolean | null;
 }
 
 interface FilaInvitacion {
@@ -75,6 +80,11 @@ function mapearFilaAUsuario(fila: FilaUsuario): Usuario {
     versionSesion: Number(fila.version_sesion ?? 1),
     telegramChatId: fila.telegram_chat_id ?? '',
     whatsappNumero: fila.whatsapp_numero ?? '',
+    planNombre: fila.plan_nombre ?? (fila.rol === 'superadmin' ? 'ilimitado' : 'basico'),
+    cuotaRamMb: Number(fila.cuota_ram_mb ?? (fila.rol === 'superadmin' ? 4096 : 512)),
+    cuotaCpu: Number(fila.cuota_cpu ?? (fila.rol === 'superadmin' ? 4 : 0.75)),
+    maxProyectos: Number(fila.max_proyectos ?? (fila.rol === 'superadmin' ? 50 : 2)),
+    iaBasicaHabilitada: Boolean(fila.ia_basica_habilitada ?? fila.rol === 'superadmin'),
   });
 }
 
@@ -97,7 +107,8 @@ function mapearFilaAInvitacion(fila: FilaInvitacion): InvitacionUsuario {
 
 const COLUMNAS_USUARIO = `id, nombre_usuario, hash_contrasena, rol, secreto_totp, totp_habilitado,
   creado_en, activo, permisos_modulos, ultimo_acceso_en, ultima_ip_acceso, version_sesion,
-  telegram_chat_id, whatsapp_numero`;
+  telegram_chat_id, whatsapp_numero, plan_nombre, cuota_ram_mb, cuota_cpu, max_proyectos,
+  ia_basica_habilitada`;
 
 /** Implementación PostgreSQL de RepositorioUsuarios usando exclusivamente queries parametrizadas. */
 export class RepositorioUsuariosPostgres implements RepositorioUsuarios {
@@ -319,6 +330,38 @@ export class RepositorioUsuariosPostgres implements RepositorioUsuarios {
        WHERE id = $1
        RETURNING ${COLUMNAS_USUARIO}`,
       [id, contacto.telegramChatId.trim(), contacto.whatsappNumero.trim()],
+    );
+    if (resultado.rows.length === 0) return null;
+    return mapearFilaAUsuario(resultado.rows[0]);
+  }
+
+  public async actualizarPlanCuota(
+    id: string,
+    plan: {
+      planNombre: string;
+      cuotaRamMb: number;
+      cuotaCpu: number;
+      maxProyectos: number;
+      iaBasicaHabilitada: boolean;
+    },
+  ): Promise<Usuario | null> {
+    const resultado = await this.pool.query<FilaUsuario>(
+      `UPDATE usuarios
+       SET plan_nombre = $2,
+           cuota_ram_mb = $3,
+           cuota_cpu = $4,
+           max_proyectos = $5,
+           ia_basica_habilitada = $6
+       WHERE id = $1
+       RETURNING ${COLUMNAS_USUARIO}`,
+      [
+        id,
+        plan.planNombre.trim(),
+        plan.cuotaRamMb,
+        plan.cuotaCpu,
+        plan.maxProyectos,
+        plan.iaBasicaHabilitada,
+      ],
     );
     if (resultado.rows.length === 0) return null;
     return mapearFilaAUsuario(resultado.rows[0]);

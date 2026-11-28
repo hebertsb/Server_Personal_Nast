@@ -113,4 +113,21 @@ export const usuariosServicio = {
       datos,
       tokenAcceso,
     ),
+
+  actualizarPlan: (
+    id: string,
+    datos: {
+      planNombre: string;
+      cuotaRamMb: number;
+      cuotaCpu: number;
+      maxProyectos: number;
+      iaBasicaHabilitada: boolean;
+    },
+    tokenAcceso: string,
+  ): Promise<{ usuario: UsuarioAutenticado }> =>
+    apiCliente.patch<{ usuario: UsuarioAutenticado }>(
+      `/usuarios/${encodeURIComponent(id)}/plan`,
+      datos,
+      tokenAcceso,
+    ),
 };

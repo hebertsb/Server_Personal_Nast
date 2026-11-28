@@ -254,6 +254,7 @@ async function iniciarServidor(): Promise<void> {
     ejecutorDespliegue,
     listarPuertosDockerEnUso,
     (datos) => casoUsoPortafolio.sincronizarDesdeDespliegue(datos),
+    repositorioUsuarios,
   );
   const casoUsoAutomatizaciones = new GestionarAutomatizaciones(
     repositorioAutomatizaciones,

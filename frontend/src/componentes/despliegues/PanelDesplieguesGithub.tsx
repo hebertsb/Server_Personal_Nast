@@ -120,6 +120,7 @@ export default function PanelDesplieguesGithub() {
   const [repoEnAsistente, setRepoEnAsistente] = useState<RepositorioGithubItem | null>(null);
   const [carpetaRaizAsistente, setCarpetaRaizAsistente] = useState('/');
   const [subdominioAsistente, setSubdominioAsistente] = useState('');
+  const [gpuRemotaAsistente, setGpuRemotaAsistente] = useState('');
   const [bloqueEnvAsistente, setBloqueEnvAsistente] = useState('');
   const [deteccion, setDeteccion] = useState<ResultadoDeteccionItem | null>(null);
   const [detectando, setDetectando] = useState(false);
@@ -326,6 +327,7 @@ export default function PanelDesplieguesGithub() {
       .replace(/^-+|-+$/g, '')
       .slice(0, 48);
     setSubdominioAsistente(slugSubdominio);
+    setGpuRemotaAsistente('');
     setBloqueEnvAsistente('');
     try {
       const sug = await githubServicio
@@ -400,6 +402,7 @@ export default function PanelDesplieguesGithub() {
           puerto: Number(puertoAsistente),
           carpetaRaiz: carpetaLimpia ? `/${carpetaLimpia}` : '/',
           subdominio: subdominioAsistente.trim().toLowerCase(),
+          gpuRemotaUrl: gpuRemotaAsistente.trim(),
           tipoProyecto: deteccion.tipoDetectado,
           modoActualizacion: modoAsistente,
           requiereAprobacion: aprobacionAsistente,
@@ -650,6 +653,48 @@ export default function PanelDesplieguesGithub() {
       {aviso && (
         <div className="rounded-xl bg-primary/12 border border-primary/25 px-4 py-3 text-xs font-medium text-primary">
           {aviso}
+        </div>
+      )}
+
+      {/* Tarjeta auto-explicativa del Plan y Recursos del usuario (SaaS + IA + GPU Remota) */}
+      {usuario && (
+        <div className="rounded-2xl bg-surface-card border border-border-hairline p-4 flex flex-col gap-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[18px] text-primary">
+                workspace_premium
+              </span>
+              <span className="text-xs font-bold text-text-primary">
+                Tu Plan de Hosting:{' '}
+                <span className="uppercase text-primary">{usuario.planNombre ?? 'basico'}</span>
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 text-[11px] font-mono">
+              <span className="px-2 py-0.5 rounded-md bg-surface-low border border-border-hairline text-text-primary">
+                RAM máx/servicio: {usuario.cuotaRamMb ?? 512} MB
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-surface-low border border-border-hairline text-text-primary">
+                CPU: {usuario.cuotaCpu ?? 0.75} vCPU
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-surface-low border border-border-hairline text-text-primary">
+                Proyectos: {proyectos.length} / {usuario.maxProyectos ?? 2}
+              </span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] text-text-muted">
+            <div className="p-2.5 rounded-xl bg-surface-low border border-border-hairline">
+              <strong className="text-text-primary">Modelos de IA en el servidor:</strong>{' '}
+              {usuario.iaBasicaHabilitada
+                ? 'Tu plan incluye soporte para modelos ligeros (scikit-learn, embeddings pequeños) y conexión a APIs externas (Gemini, OpenAI, Groq).'
+                : 'Tu plan está optimizado para apps web, APIs y consumo de APIs externas de IA (Gemini, OpenAI, Groq). Para modelos locales en servidor, solicita Plan Pro o IA.'}
+            </div>
+            <div className="p-2.5 rounded-xl bg-surface-low border border-border-hairline">
+              <strong className="text-text-primary">Modelos pesados con GPU (Modo GPU Remota):</strong>{' '}
+              Incluido en todos los planes. Corre tu modelo pesado (Llama 3, Qwen 7B+, Whisper) en
+              la GPU de tu laptop durante tu defensa y conecta la URL del túnel al desplegar tu
+              proyecto.
+            </div>
+          </div>
         </div>
       )}
 
@@ -1034,6 +1079,35 @@ export default function PanelDesplieguesGithub() {
                   </div>
 
                   {/* Paso 2: Variables de Entorno ANTES de confirmar y desplegar */}
+                  <div className="rounded-xl bg-surface-low border border-border-hairline p-3.5 flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px] text-primary">
+                        memory
+                      </span>
+                      <span>Modo GPU Remota (opcional — para modelos de IA pesados)</span>
+                    </label>
+                    <p className="text-[11px] text-text-muted">
+                      Tu plan incluye ejecución de apps web/API
+                      {usuario?.iaBasicaHabilitada
+                        ? ' y modelos de IA ligeros en el servidor.'
+                        : '.'}{' '}
+                      Si tu proyecto usa un modelo pesado que requiere GPU (ej. Llama 3, Qwen 7B+,
+                      Whisper), córrelo en tu laptop con GPU y pega aquí la URL de tu túnel
+                      (Cloudflare Tunnel / Tailscale): HomeSOC la inyectará como{' '}
+                      <code className="text-primary">OLLAMA_URL</code> e{' '}
+                      <code className="text-primary">IA_REMOTE_URL</code> sin gastar RAM extra del
+                      servidor.
+                    </p>
+                    <input
+                      type="url"
+                      value={gpuRemotaAsistente}
+                      onChange={(e) => setGpuRemotaAsistente(e.target.value)}
+                      placeholder="https://mi-gpu.trycloudflare.com (opcional)"
+                      className="w-full rounded-xl bg-surface-card border border-border-hairline px-3 py-2 text-xs font-mono text-text-primary placeholder:text-text-dim"
+                    />
+                  </div>
+
+                  {/* Paso 2b: Variables de Entorno ANTES de confirmar y desplegar */}
                   <div className="rounded-xl bg-surface-low border border-primary/25 p-4 flex flex-col gap-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>

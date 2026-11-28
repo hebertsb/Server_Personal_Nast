@@ -53,6 +53,12 @@ export const esquemaCrearProyecto = z.object({
     .max(120)
     .regex(/^[a-z0-9-]*$/, 'El subdominio solo permite minúsculas, números y guiones')
     .default(''),
+  gpuRemotaUrl: z
+    .string()
+    .trim()
+    .max(300)
+    .refine((v) => v === '' || /^https?:\/\//i.test(v), 'La URL de GPU remota debe iniciar con http:// o https://')
+    .default(''),
   tipoProyecto: z.enum(['dockerfile', 'nodejs', 'html_estatico']).optional(),
   modoActualizacion: z.enum(['webhook', 'polling']).default('polling'),
   requiereAprobacion: z.boolean().default(false),
@@ -155,12 +161,13 @@ export class DesplieguesController {
   };
 
   public listarProyectos = async (
-    _req: Request,
+    req: Request,
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const proyectos = await this.casoUso.listarProyectos();
+      const ctx = this.contexto(req);
+      const proyectos = await this.casoUso.listarProyectos(ctx ?? undefined);
       res.status(200).json({ proyectos });
     } catch (error) {
       next(error);

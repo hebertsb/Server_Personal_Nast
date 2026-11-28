@@ -67,6 +67,12 @@ export default function Usuarios() {
   const [editandoContactoId, setEditandoContactoId] = useState<string | null>(null);
   const [telegramEdit, setTelegramEdit] = useState('');
   const [whatsappEdit, setWhatsappEdit] = useState('');
+  const [editandoPlanId, setEditandoPlanId] = useState<string | null>(null);
+  const [planNombreEdit, setPlanNombreEdit] = useState('basico');
+  const [cuotaRamEdit, setCuotaRamEdit] = useState('512');
+  const [cuotaCpuEdit, setCuotaCpuEdit] = useState('0.75');
+  const [maxProyEdit, setMaxProyEdit] = useState('2');
+  const [iaBasicaEdit, setIaBasicaEdit] = useState(false);
 
   const cargarTodo = useCallback(async () => {
     if (!tokenAcceso) return;
@@ -210,6 +216,38 @@ export default function Usuarios() {
       await cargarTodo();
     } catch (e) {
       setError(e instanceof ErrorApi ? e.message : 'No se pudo guardar el contacto');
+    }
+  };
+
+  const abrirEditorPlan = (u: UsuarioAutenticado) => {
+    setEditandoPlanId(u.id);
+    setPlanNombreEdit(u.planNombre ?? 'basico');
+    setCuotaRamEdit(String(u.cuotaRamMb ?? 512));
+    setCuotaCpuEdit(String(u.cuotaCpu ?? 0.75));
+    setMaxProyEdit(String(u.maxProyectos ?? 2));
+    setIaBasicaEdit(Boolean(u.iaBasicaHabilitada));
+  };
+
+  const guardarPlan = async (usuarioId: string) => {
+    if (!tokenAcceso) return;
+    setError(null);
+    try {
+      await usuariosServicio.actualizarPlan(
+        usuarioId,
+        {
+          planNombre: planNombreEdit.trim() || 'basico',
+          cuotaRamMb: Number(cuotaRamEdit) || 512,
+          cuotaCpu: Number(cuotaCpuEdit) || 0.75,
+          maxProyectos: Number(maxProyEdit) || 2,
+          iaBasicaHabilitada: iaBasicaEdit,
+        },
+        tokenAcceso,
+      );
+      setEditandoPlanId(null);
+      setMensaje('Plan y cuota de recursos actualizados correctamente');
+      await cargarTodo();
+    } catch (e) {
+      setError(e instanceof ErrorApi ? e.message : 'No se pudo guardar el plan');
     }
   };
 
@@ -494,6 +532,15 @@ export default function Usuarios() {
                       >
                         {editandoContactoId === u.id ? 'Cerrar contacto' : 'Telegram / WhatsApp'}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          editandoPlanId === u.id ? setEditandoPlanId(null) : abrirEditorPlan(u)
+                        }
+                        className="px-2.5 py-1.5 rounded-lg bg-surface-card border border-border-hairline text-xs font-medium text-text-primary hover:border-primary/40 cursor-pointer"
+                      >
+                        {editandoPlanId === u.id ? 'Cerrar plan' : 'Plan / Cuota'}
+                      </button>
                       {!esYo && (
                         <>
                           <button
@@ -532,6 +579,114 @@ export default function Usuarios() {
                       )}
                     </div>
                   </div>
+
+                  {/* Resumen y editor de Plan / Cuota SaaS */}
+                  <div className="flex flex-wrap gap-1.5 text-[11px] font-mono">
+                    <span className="px-2 py-0.5 rounded bg-surface-card border border-border-hairline text-text-primary">
+                      Plan: {u.planNombre ?? 'basico'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-surface-card border border-border-hairline text-text-muted">
+                      RAM: {u.cuotaRamMb ?? 512} MB
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-surface-card border border-border-hairline text-text-muted">
+                      CPU: {u.cuotaCpu ?? 0.75}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-surface-card border border-border-hairline text-text-muted">
+                      Máx. proyectos: {u.maxProyectos ?? 2}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded border ${
+                        u.iaBasicaHabilitada
+                          ? 'bg-primary/10 border-primary/25 text-primary'
+                          : 'bg-surface-card border-border-hairline text-text-dim'
+                      }`}
+                    >
+                      {u.iaBasicaHabilitada ? 'IA ligera incluida' : 'Solo Web/API + GPU remota'}
+                    </span>
+                  </div>
+
+                  {editandoPlanId === u.id && (
+                    <div className="pt-3 border-t border-border-hairline flex flex-col gap-2.5">
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: 'Básico (512 MB · 2 proy)', nombre: 'basico', ram: '512', cpu: '0.5', max: '2', ia: false },
+                          { label: 'Pro (1 GB · 4 proy · IA ligera)', nombre: 'pro', ram: '1024', cpu: '1', max: '4', ia: true },
+                          { label: 'IA Especial (2 GB · 6 proy)', nombre: 'ia_especial', ram: '2048', cpu: '2', max: '6', ia: true },
+                          { label: 'IA Heavy (4 GB · 10 proy)', nombre: 'ia_heavy', ram: '4096', cpu: '3', max: '10', ia: true },
+                        ].map((preset) => (
+                          <button
+                            key={preset.nombre}
+                            type="button"
+                            onClick={() => {
+                              setPlanNombreEdit(preset.nombre);
+                              setCuotaRamEdit(preset.ram);
+                              setCuotaCpuEdit(preset.cpu);
+                              setMaxProyEdit(preset.max);
+                              setIaBasicaEdit(preset.ia);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/25 text-[11px] font-medium text-primary cursor-pointer"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <input
+                          type="text"
+                          value={planNombreEdit}
+                          onChange={(e) => setPlanNombreEdit(e.target.value)}
+                          placeholder="Plan"
+                          className="rounded-lg bg-surface-card border border-border-hairline px-2.5 py-1.5 text-xs font-mono text-text-primary"
+                        />
+                        <input
+                          type="number"
+                          min={128}
+                          max={8192}
+                          value={cuotaRamEdit}
+                          onChange={(e) => setCuotaRamEdit(e.target.value)}
+                          placeholder="RAM MB"
+                          className="rounded-lg bg-surface-card border border-border-hairline px-2.5 py-1.5 text-xs font-mono text-text-primary"
+                        />
+                        <input
+                          type="number"
+                          step="0.25"
+                          min={0.25}
+                          max={8}
+                          value={cuotaCpuEdit}
+                          onChange={(e) => setCuotaCpuEdit(e.target.value)}
+                          placeholder="CPU"
+                          className="rounded-lg bg-surface-card border border-border-hairline px-2.5 py-1.5 text-xs font-mono text-text-primary"
+                        />
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={maxProyEdit}
+                          onChange={(e) => setMaxProyEdit(e.target.value)}
+                          placeholder="Máx proyectos"
+                          className="rounded-lg bg-surface-card border border-border-hairline px-2.5 py-1.5 text-xs font-mono text-text-primary"
+                        />
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <label className="inline-flex items-center gap-2 text-xs text-text-primary cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={iaBasicaEdit}
+                            onChange={(e) => setIaBasicaEdit(e.target.checked)}
+                            className="accent-primary"
+                          />
+                          <span>Incluye modelos de IA ligeros / básicos en el servidor</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => void guardarPlan(u.id)}
+                          className="px-3.5 py-1.5 rounded-lg bg-primary text-[var(--hs-on-accent)] text-xs font-semibold cursor-pointer"
+                        >
+                          Guardar plan
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Contacto actual (Telegram / WhatsApp) */}
                   {editandoContactoId === u.id ? (

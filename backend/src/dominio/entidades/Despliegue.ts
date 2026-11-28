@@ -23,6 +23,7 @@ export interface ProyectoConectado {
   puerto: number;
   carpetaRaiz?: string;
   subdominio?: string;
+  gpuRemotaUrl?: string;
   tipoProyecto: TipoProyectoDespliegue;
   modoActualizacion: ModoActualizacionRepo;
   requiereAprobacion: boolean;

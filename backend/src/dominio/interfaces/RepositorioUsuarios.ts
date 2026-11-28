@@ -51,4 +51,14 @@ export interface RepositorioUsuarios {
     id: string,
     contacto: { telegramChatId: string; whatsappNumero: string },
   ): Promise<Usuario | null>;
+  actualizarPlanCuota?(
+    id: string,
+    plan: {
+      planNombre: string;
+      cuotaRamMb: number;
+      cuotaCpu: number;
+      maxProyectos: number;
+      iaBasicaHabilitada: boolean;
+    },
+  ): Promise<Usuario | null>;
 }

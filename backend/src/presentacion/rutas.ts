@@ -66,6 +66,7 @@ import {
   esquemaConfigEditor,
   esquemaContactoUsuario,
   esquemaCrearInvitacion,
+  esquemaPlanUsuario,
   UsuariosController,
 } from './controladores/UsuariosController';
 import {
@@ -655,6 +656,13 @@ export function crearRutas(deps: DependenciasRutas): Router {
       deps.middlewareAutenticacion,
       validarCuerpo(esquemaContactoUsuario),
       deps.usuariosController.actualizarContacto,
+    );
+    routerApiV1.patch(
+      '/usuarios/:id/plan',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaPlanUsuario),
+      deps.usuariosController.actualizarPlan,
     );
     routerApiV1.get(
       '/configuracion/editor',
