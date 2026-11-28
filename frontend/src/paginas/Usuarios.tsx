@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { usarAutenticacion } from '../contexto/ContextoAutenticacion';
 import { ErrorApi } from '../servicios/apiCliente';
+import { PlanHostingItem, planesServicio } from '../servicios/planesServicio';
 import {
   ModuloSistema,
   RolUsuario,
@@ -73,18 +74,21 @@ export default function Usuarios() {
   const [cuotaCpuEdit, setCuotaCpuEdit] = useState('0.75');
   const [maxProyEdit, setMaxProyEdit] = useState('2');
   const [iaBasicaEdit, setIaBasicaEdit] = useState(false);
+  const [catalogoPlanes, setCatalogoPlanes] = useState<PlanHostingItem[]>([]);
 
   const cargarTodo = useCallback(async () => {
     if (!tokenAcceso) return;
     setCargando(true);
     setError(null);
     try {
-      const [resU, resI] = await Promise.all([
+      const [resU, resI, resP] = await Promise.all([
         usuariosServicio.listarUsuarios(tokenAcceso),
         usuariosServicio.listarInvitaciones(tokenAcceso),
+        planesServicio.listarPlanes(tokenAcceso).catch(() => ({ planes: [] })),
       ]);
       setUsuarios(resU.usuarios);
       setInvitaciones(resI.invitaciones);
+      setCatalogoPlanes(resP.planes ?? []);
     } catch (e) {
       setError(e instanceof ErrorApi ? e.message : 'No se pudieron cargar los usuarios');
     } finally {
@@ -607,6 +611,34 @@ export default function Usuarios() {
 
                   {editandoPlanId === u.id && (
                     <div className="pt-3 border-t border-border-hairline flex flex-col gap-2.5">
+                      {catalogoPlanes.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="text-[11px] font-medium text-text-muted">
+                            Elegir plan del catálogo:
+                          </label>
+                          <select
+                            value=""
+                            onChange={(e) => {
+                              const sel = catalogoPlanes.find((p) => p.id === e.target.value);
+                              if (!sel) return;
+                              setPlanNombreEdit(sel.codigo);
+                              setCuotaRamEdit(String(sel.cuotaRamMb));
+                              setCuotaCpuEdit(String(sel.cuotaCpu));
+                              setMaxProyEdit(String(sel.maxProyectos));
+                              setIaBasicaEdit(sel.iaBasicaHabilitada);
+                            }}
+                            className="rounded-lg bg-surface-card border border-primary/35 px-2.5 py-1.5 text-xs text-text-primary"
+                          >
+                            <option value="">-- Seleccionar plan creado --</option>
+                            {catalogoPlanes.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.nombre} (Bs {p.precioBs}/{p.periodo} • {p.cuotaRamMb} MB •{' '}
+                                {p.maxProyectos} proy)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                       <div className="flex flex-wrap gap-1.5">
                         {[
                           { label: 'Básico (512 MB · 2 proy)', nombre: 'basico', ram: '512', cpu: '0.5', max: '2', ia: false },

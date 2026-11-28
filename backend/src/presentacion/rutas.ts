@@ -31,6 +31,14 @@ import {
 } from './controladores/IaMcpController';
 import { HealthController } from './controladores/HealthController';
 import {
+  esquemaConfigCobro,
+  esquemaCrearSolicitud,
+  esquemaPlanHosting,
+  esquemaRecomendarPlanIa,
+  esquemaRevisarSolicitud,
+  PlanesController,
+} from './controladores/PlanesController';
+import {
   esquemaActualizarComponentePortafolio,
   esquemaActualizarTareaPortafolio,
   esquemaCrearComponentePortafolio,
@@ -88,6 +96,7 @@ export interface DependenciasRutas {
   automatizacionesController: AutomatizacionesController;
   iaMcpController: IaMcpController;
   portafolioController?: PortafolioController;
+  planesController?: PlanesController;
   healthController: HealthController;
   middlewareAutenticacion: RequestHandler;
   limitadorLogin: RequestHandler;
@@ -504,6 +513,72 @@ export function crearRutas(deps: DependenciasRutas): Router {
       deps.middlewareAutenticacion,
       validarCuerpo(esquemaCrearTicketPortafolio),
       deps.portafolioController.crearTicket,
+    );
+  }
+
+  if (deps.planesController) {
+    routerApiV1.get('/planes', deps.middlewareAutenticacion, deps.planesController.listarPlanes);
+    routerApiV1.post(
+      '/planes',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaPlanHosting),
+      deps.planesController.crearPlan,
+    );
+    routerApiV1.put(
+      '/planes/:id',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaPlanHosting),
+      deps.planesController.actualizarPlan,
+    );
+    routerApiV1.delete(
+      '/planes/:id',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      deps.planesController.eliminarPlan,
+    );
+    routerApiV1.post(
+      '/planes/recomendar-ia',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaRecomendarPlanIa),
+      deps.planesController.recomendarPlanIa,
+    );
+    routerApiV1.get(
+      '/planes/cobro',
+      deps.middlewareAutenticacion,
+      deps.planesController.obtenerConfigCobro,
+    );
+    routerApiV1.put(
+      '/planes/cobro',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaConfigCobro),
+      deps.planesController.guardarConfigCobro,
+    );
+    routerApiV1.get(
+      '/planes/solicitudes',
+      deps.middlewareAutenticacion,
+      deps.planesController.listarSolicitudes,
+    );
+    routerApiV1.post(
+      '/planes/solicitudes',
+      deps.middlewareAutenticacion,
+      validarCuerpo(esquemaCrearSolicitud),
+      deps.planesController.crearSolicitud,
+    );
+    routerApiV1.patch(
+      '/planes/solicitudes/:id/revisar',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaRevisarSolicitud),
+      deps.planesController.revisarSolicitud,
+    );
+    routerApiV1.patch(
+      '/planes/solicitudes/:id/cancelar',
+      deps.middlewareAutenticacion,
+      deps.planesController.cancelarSolicitud,
     );
   }
 

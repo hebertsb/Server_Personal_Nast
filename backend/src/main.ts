@@ -15,6 +15,7 @@ import { AsistenteIA } from './aplicacion/ia/AsistenteIA';
 import { EjecutorHerramientasMcp } from './aplicacion/mcp/EjecutorHerramientasMcp';
 import { GestionarTokensMcp } from './aplicacion/mcp/GestionarTokensMcp';
 import { NotificarEvento } from './aplicacion/notificaciones/NotificarEvento';
+import { GestionarPlanesYSuscripciones } from './aplicacion/planes/GestionarPlanesYSuscripciones';
 import { GestionarPortafolioProyectos } from './aplicacion/portafolio/GestionarPortafolioProyectos';
 import { ObtenerHistoricoRecursos } from './aplicacion/recursos/ObtenerHistoricoRecursos';
 import { ObtenerRecursosHost } from './aplicacion/recursos/ObtenerRecursosHost';
@@ -46,6 +47,7 @@ import { RepositorioConexionGithubPostgres } from './infraestructura/postgres/Re
 import { RepositorioContenedoresPostgres } from './infraestructura/postgres/RepositorioContenedoresPostgres';
 import { RepositorioDesplieguesPostgres } from './infraestructura/postgres/RepositorioDesplieguesPostgres';
 import { RepositorioEventosPostgres } from './infraestructura/postgres/RepositorioEventosPostgres';
+import { RepositorioPlanesPostgres } from './infraestructura/postgres/RepositorioPlanesPostgres';
 import { RepositorioPortafolioPostgres } from './infraestructura/postgres/RepositorioPortafolioPostgres';
 import { RepositorioRecursosHostPostgres } from './infraestructura/postgres/RepositorioRecursosHostPostgres';
 import { RepositorioSeguridad2FAPostgres } from './infraestructura/postgres/RepositorioSeguridad2FAPostgres';
@@ -69,6 +71,7 @@ import { DesplieguesController } from './presentacion/controladores/DesplieguesC
 import { GithubController } from './presentacion/controladores/GithubController';
 import { HealthController } from './presentacion/controladores/HealthController';
 import { IaMcpController } from './presentacion/controladores/IaMcpController';
+import { PlanesController } from './presentacion/controladores/PlanesController';
 import { PortafolioController } from './presentacion/controladores/PortafolioController';
 import { RecursosController } from './presentacion/controladores/RecursosController';
 import { SeguridadController } from './presentacion/controladores/SeguridadController';
@@ -101,6 +104,7 @@ async function iniciarServidor(): Promise<void> {
   const repositorioAutomatizaciones = new RepositorioAutomatizacionesPostgres(pool);
   const repositorioTokensMcp = new RepositorioTokensMcpPostgres(pool);
   const repositorioPortafolio = new RepositorioPortafolioPostgres(pool);
+  const repositorioPlanes = new RepositorioPlanesPostgres(pool);
 
   const servicioHash = new ServicioHashBcrypt();
   const servicioCifrado = new ServicioCifradoAes(config.ENCRYPTION_KEY);
@@ -350,6 +354,14 @@ async function iniciarServidor(): Promise<void> {
     ejecutorMcp,
   );
   const portafolioController = new PortafolioController(casoUsoPortafolio);
+  const casoUsoPlanes = new GestionarPlanesYSuscripciones(
+    repositorioPlanes,
+    repositorioUsuarios,
+    repositorioAuditoria,
+    notificarEvento,
+    casoUsoAsistenteIA,
+  );
+  const planesController = new PlanesController(casoUsoPlanes);
   const healthController = new HealthController({
     verificarPostgres: () => verificarConexionPostgres(pool),
     verificarDocker: () => colectorDocker.verificarConexion(),
@@ -390,6 +402,7 @@ async function iniciarServidor(): Promise<void> {
       automatizacionesController,
       iaMcpController,
       portafolioController,
+      planesController,
       healthController,
       middlewareAutenticacion,
       limitadorLogin,

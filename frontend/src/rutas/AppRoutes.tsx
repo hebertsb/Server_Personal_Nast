@@ -9,6 +9,7 @@ import RedYConectividad from '../paginas/RedYConectividad';
 import Seguridad from '../paginas/Seguridad';
 import Automatizacion from '../paginas/Automatizacion';
 import ConfiguracionGeneral from '../paginas/ConfiguracionGeneral';
+import PlanesYSuscripcion from '../paginas/PlanesYSuscripcion';
 import Usuarios from '../paginas/Usuarios';
 import LayoutPrincipal from '../componentes/comunes/LayoutPrincipal';
 
@@ -70,6 +71,14 @@ export default function AppRoutes() {
           element={
             <RutaProtegida modulo="servicios">
               <ServiciosYDespliegues />
+            </RutaProtegida>
+          }
+        />
+        <Route
+          path="/planes"
+          element={
+            <RutaProtegida modulo="servicios">
+              <PlanesYSuscripcion />
             </RutaProtegida>
           }
         />

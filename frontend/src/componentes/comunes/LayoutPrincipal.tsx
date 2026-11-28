@@ -48,6 +48,14 @@ const ITEMS_MENU: ItemMenu[] = [
     grupo: 'Operación',
   },
   {
+    ruta: '/planes',
+    modulo: 'servicios',
+    icono: 'workspace_premium',
+    texto: 'Planes y Suscripción',
+    descripcion: 'Catálogo de planes, vista previa y pagos QR',
+    grupo: 'Sistema',
+  },
+  {
     ruta: '/red',
     modulo: 'red',
     icono: 'hub',
