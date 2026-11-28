@@ -15,6 +15,7 @@ export interface PlanHostingItem {
   cuotaRamMb: number;
   cuotaCpu: number;
   maxProyectos: number;
+  maxMiembros: number;
   iaBasicaHabilitada: boolean;
   beneficios: string[];
   destacado: boolean;
@@ -57,6 +58,9 @@ export interface RecomendacionPlanIa {
 }
 
 export const planesServicio = {
+  listarPlanesPublicos: (): Promise<{ planes: PlanHostingItem[] }> =>
+    apiCliente.get<{ planes: PlanHostingItem[] }>('/planes/publicos'),
+
   listarPlanes: (tokenAcceso: string): Promise<{ planes: PlanHostingItem[] }> =>
     apiCliente.get<{ planes: PlanHostingItem[] }>('/planes', tokenAcceso),
 

@@ -22,6 +22,7 @@ interface FilaPlan {
   cuota_ram_mb: number;
   cuota_cpu: string | number;
   max_proyectos: number;
+  max_miembros?: number;
   ia_basica_habilitada: boolean;
   beneficios: unknown;
   destacado: boolean;
@@ -64,6 +65,7 @@ function mapPlan(f: FilaPlan): PlanHosting {
     cuotaRamMb: Number(f.cuota_ram_mb),
     cuotaCpu: Number(f.cuota_cpu),
     maxProyectos: Number(f.max_proyectos),
+    maxMiembros: Number(f.max_miembros ?? 5),
     iaBasicaHabilitada: Boolean(f.ia_basica_habilitada),
     beneficios: Array.isArray(f.beneficios)
       ? f.beneficios.filter((b): b is string => typeof b === 'string')
@@ -119,9 +121,9 @@ export class RepositorioPlanesPostgres implements RepositorioPlanes {
     const res = await this.pool.query<FilaPlan>(
       `INSERT INTO planes_hosting (
          codigo, nombre, descripcion, precio_bs, descuento_anual_pct, periodo, cuota_ram_mb, cuota_cpu,
-         max_proyectos, ia_basica_habilitada, beneficios, destacado, activo, orden
+         max_proyectos, max_miembros, ia_basica_habilitada, beneficios, destacado, activo, orden
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15)
        RETURNING *`,
       [
         datos.codigo,
@@ -133,6 +135,7 @@ export class RepositorioPlanesPostgres implements RepositorioPlanes {
         datos.cuotaRamMb,
         datos.cuotaCpu,
         datos.maxProyectos,
+        datos.maxMiembros ?? 5,
         datos.iaBasicaHabilitada,
         JSON.stringify(datos.beneficios),
         datos.destacado,
@@ -160,11 +163,12 @@ export class RepositorioPlanesPostgres implements RepositorioPlanes {
            cuota_ram_mb = $8,
            cuota_cpu = $9,
            max_proyectos = $10,
-           ia_basica_habilitada = $11,
-           beneficios = $12::jsonb,
-           destacado = $13,
-           activo = $14,
-           orden = $15,
+           max_miembros = $11,
+           ia_basica_habilitada = $12,
+           beneficios = $13::jsonb,
+           destacado = $14,
+           activo = $15,
+           orden = $16,
            actualizado_en = NOW()
        WHERE id = $1
        RETURNING *`,
@@ -179,6 +183,7 @@ export class RepositorioPlanesPostgres implements RepositorioPlanes {
         datos.cuotaRamMb ?? actual.cuotaRamMb,
         datos.cuotaCpu ?? actual.cuotaCpu,
         datos.maxProyectos ?? actual.maxProyectos,
+        datos.maxMiembros ?? actual.maxMiembros,
         datos.iaBasicaHabilitada ?? actual.iaBasicaHabilitada,
         JSON.stringify(datos.beneficios ?? actual.beneficios),
         datos.destacado ?? actual.destacado,

@@ -13,6 +13,7 @@ export interface PlanHosting {
   cuotaRamMb: number;
   cuotaCpu: number;
   maxProyectos: number;
+  maxMiembros: number;
   iaBasicaHabilitada: boolean;
   beneficios: string[];
   destacado: boolean;

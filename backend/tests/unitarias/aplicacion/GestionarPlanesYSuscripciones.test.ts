@@ -46,6 +46,7 @@ describe('GestionarPlanesYSuscripciones', () => {
         cuotaRamMb: 1024,
         cuotaCpu: 1,
         maxProyectos: 4,
+        maxMiembros: 5,
         iaBasicaHabilitada: true,
         beneficios: [],
         destacado: true,

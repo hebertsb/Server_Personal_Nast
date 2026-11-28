@@ -19,6 +19,7 @@ export const esquemaPlanHosting = z.object({
   cuotaRamMb: z.coerce.number().int().min(128).max(8192).default(512),
   cuotaCpu: z.coerce.number().min(0.25).max(8).default(0.5),
   maxProyectos: z.coerce.number().int().min(1).max(100).default(2),
+  maxMiembros: z.coerce.number().int().min(1).max(50).default(5),
   iaBasicaHabilitada: z.boolean().default(false),
   beneficios: z.array(z.string().trim().min(1).max(180)).max(12).default([]),
   destacado: z.boolean().default(false),
@@ -62,6 +63,7 @@ export const esquemaRecomendarPlanIa = z.object({
   cuotaRamMb: z.coerce.number().int().min(128).max(8192).default(512),
   cuotaCpu: z.coerce.number().min(0.25).max(8).default(0.5),
   maxProyectos: z.coerce.number().int().min(1).max(100).default(2),
+  maxMiembros: z.coerce.number().int().min(1).max(50).default(5),
   iaBasicaHabilitada: z.boolean().default(false),
 });
 
@@ -83,6 +85,20 @@ export class PlanesController {
     try {
       const esSuper = req.usuarioAutenticado?.rol === 'superadmin';
       const planes = await this.casoUso.listarPlanes(!esSuper);
+      res.status(200).json({ planes });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /** Catálogo público de planes activos para mostrar en la pantalla de inicio/registro. */
+  public listarPlanesPublicos = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const planes = await this.casoUso.listarPlanes(true);
       res.status(200).json({ planes });
     } catch (error) {
       next(error);

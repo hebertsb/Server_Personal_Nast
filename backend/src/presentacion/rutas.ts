@@ -542,6 +542,7 @@ export function crearRutas(deps: DependenciasRutas): Router {
   }
 
   if (deps.planesController) {
+    routerApiV1.get('/planes/publicos', deps.planesController.listarPlanesPublicos);
     routerApiV1.get('/planes', deps.middlewareAutenticacion, deps.planesController.listarPlanes);
     routerApiV1.post(
       '/planes',

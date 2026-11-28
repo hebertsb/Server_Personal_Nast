@@ -7,8 +7,9 @@ import {
   RespuestaPendiente2FA,
 } from '../../servicios/autenticacionServicio';
 import { biometriaServicio, biometriaSoportada } from '../../servicios/biometriaServicio';
+import { CicloFacturacion, PlanHostingItem, planesServicio } from '../../servicios/planesServicio';
 
-type ModoPortal = 'login' | 'registro' | 'recuperar' | 'setup';
+type ModoPortal = 'login' | 'registro' | 'planes' | 'recuperar' | 'setup';
 
 interface EvaluacionContrasena {
   longitud: boolean;
@@ -175,6 +176,11 @@ export default function FormularioLogin() {
   const [telegramRegistro, setTelegramRegistro] = useState('');
   const [conTokenInvitacion, setConTokenInvitacion] = useState(false);
 
+  // Catálogo público de planes para adquirir antes de iniciar sesión
+  const [planesPublicos, setPlanesPublicos] = useState<PlanHostingItem[]>([]);
+  const [cicloPlanes, setCicloPlanes] = useState<CicloFacturacion>('mensual');
+  const [planPreseleccionado, setPlanPreseleccionado] = useState<PlanHostingItem | null>(null);
+
   // Campos de Recuperación por 2FA (TOTP)
   const [usuarioRecuperar, setUsuarioRecuperar] = useState('');
   const [codigoRecuperarTotp, setCodigoRecuperarTotp] = useState('');
@@ -202,8 +208,12 @@ export default function FormularioLogin() {
 
     void (async () => {
       try {
-        const estado = await autenticacionServicio.estadoInicial();
+        const [estado, resPlanes] = await Promise.all([
+          autenticacionServicio.estadoInicial(),
+          planesServicio.listarPlanesPublicos().catch(() => ({ planes: [] })),
+        ]);
         if (!activo) return;
+        setPlanesPublicos(resPlanes.planes ?? []);
         setRequiereSetup(estado.requiereSetup);
         if (estado.requiereSetup) {
           setModo('setup');
@@ -213,6 +223,8 @@ export default function FormularioLogin() {
             setConTokenInvitacion(true);
           }
           setModo('registro');
+        } else if (modoUrl === 'planes') {
+          setModo('planes');
         }
       } catch {
         // Si falla la consulta inicial, queda en modo login estándar
@@ -439,7 +451,12 @@ export default function FormularioLogin() {
       establecerSesionDirecta(sesion);
       setCompuertaCerrada(true);
       setMensajeCompuerta('CUENTA ACTIVADA — ACCESO CONCEDIDO');
-      window.setTimeout(() => navigate(conTokenInvitacion ? '/' : '/planes', { replace: true }), 450);
+      const destinoRegistro = conTokenInvitacion
+        ? '/'
+        : planPreseleccionado
+          ? `/planes?plan=${encodeURIComponent(planPreseleccionado.id)}&ciclo=${cicloPlanes}`
+          : '/planes';
+      window.setTimeout(() => navigate(destinoRegistro, { replace: true }), 450);
     } catch (error) {
       setMensajeError(
         error instanceof ErrorApi ? error.message : 'No se pudo completar el registro',
@@ -520,7 +537,11 @@ export default function FormularioLogin() {
   };
 
   return (
-    <div className="w-full max-w-[460px] flex flex-col items-center">
+    <div
+      className={`w-full flex flex-col items-center transition-all duration-300 ${
+        modo === 'planes' ? 'max-w-4xl' : 'max-w-[480px]'
+      }`}
+    >
       {/* Cabecera de identidad SOC */}
       <div className="flex flex-col items-center mb-6 text-center">
         <div className="relative hs-float-slow mb-4">
@@ -543,11 +564,12 @@ export default function FormularioLogin() {
 
       {/* Selector de modos */}
       {!requiereSetup && !desafio2FA && !verificandoEstado && (
-        <div className="w-full grid grid-cols-3 gap-1.5 p-1.5 mb-4 rounded-2xl bg-surface-card/90 backdrop-blur-xl border border-border-hairline shadow-sm">
+        <div className="w-full max-w-[520px] grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 mb-4 rounded-2xl bg-surface-card/90 backdrop-blur-xl border border-border-hairline shadow-sm">
           {(
             [
               { id: 'login', etiqueta: 'Acceder', icono: 'login' },
-              { id: 'registro', etiqueta: 'Invitación', icono: 'vpn_key' },
+              { id: 'planes', etiqueta: 'Planes', icono: 'storefront' },
+              { id: 'registro', etiqueta: 'Crear cuenta', icono: 'person_add' },
               { id: 'recuperar', etiqueta: 'Recuperar 2FA', icono: 'lock_reset' },
             ] as const
           ).map((tab) => {
@@ -997,9 +1019,154 @@ export default function FormularioLogin() {
                 </form>
               )}
 
+              {/* MODO 1.5: CATÁLOGO PÚBLICO DE PLANES (COMPRAR ACCESO Y REGISTRARSE) */}
+              {modo === 'planes' && (
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-bold text-text-primary">
+                        Planes de Hosting Universitario HomeSOC
+                      </h2>
+                      <p className="text-xs text-text-muted mt-0.5">
+                        Despliega tus proyectos desde GitHub con tu equipo. Paga con QR Bancario,
+                        Transferencia o Efectivo.
+                      </p>
+                    </div>
+                    <div className="inline-flex p-1 rounded-xl bg-surface-low border border-border-hairline gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setCicloPlanes('mensual')}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                          cicloPlanes === 'mensual'
+                            ? 'bg-primary text-[var(--hs-on-accent)]'
+                            : 'text-text-muted'
+                        }`}
+                      >
+                        Mensual
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCicloPlanes('anual')}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                          cicloPlanes === 'anual'
+                            ? 'bg-primary text-[var(--hs-on-accent)]'
+                            : 'text-text-muted'
+                        }`}
+                      >
+                        Anual (-20%)
+                      </button>
+                    </div>
+                  </div>
+
+                  {planesPublicos.length === 0 ? (
+                    <p className="text-xs text-text-dim py-6 text-center">
+                      No hay planes publicados por el momento. Crea tu cuenta para consultar con el
+                      administrador.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                      {planesPublicos.map((p) => {
+                        const pct = Math.max(0, Math.min(80, p.descuentoAnualPct ?? 20));
+                        const totalAnual = Math.round(p.precioBs * 12 * (1 - pct / 100));
+                        return (
+                          <div
+                            key={p.id}
+                            className={`rounded-2xl p-4 flex flex-col justify-between gap-3 border ${
+                              p.destacado
+                                ? 'bg-surface-low/90 border-primary shadow-md shadow-primary/10'
+                                : 'bg-surface-low/60 border-border-hairline'
+                            }`}
+                          >
+                            <div className="flex flex-col gap-2.5">
+                              <div className="flex items-start justify-between gap-1">
+                                <h3 className="text-sm font-bold text-text-primary">{p.nombre}</h3>
+                                {p.destacado && (
+                                  <span className="px-2 py-0.5 rounded-full bg-primary text-[var(--hs-on-accent)] text-[9px] font-bold shrink-0">
+                                    Recomendado
+                                  </span>
+                                )}
+                              </div>
+                              <div>
+                                {cicloPlanes === 'anual' ? (
+                                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                                    <span className="text-2xl font-extrabold font-mono text-text-primary">
+                                      Bs {totalAnual}
+                                    </span>
+                                    <span className="text-[11px] text-text-muted">/ año</span>
+                                    {pct > 0 && (
+                                      <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-mono font-bold">
+                                        -{pct}%
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="flex items-baseline gap-1">
+                                    <span className="text-2xl font-extrabold font-mono text-text-primary">
+                                      Bs {p.precioBs}
+                                    </span>
+                                    <span className="text-[11px] text-text-muted">/ {p.periodo}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-text-muted leading-relaxed">
+                                {p.descripcion}
+                              </p>
+                              <div className="grid grid-cols-2 gap-1.5 text-center text-[10px] font-mono">
+                                <div className="p-1.5 rounded-lg bg-surface-card border border-border-hairline">
+                                  <strong className="text-text-primary">{p.cuotaRamMb} MB</strong> RAM
+                                </div>
+                                <div className="p-1.5 rounded-lg bg-surface-card border border-border-hairline">
+                                  <strong className="text-text-primary">{p.cuotaCpu}</strong> vCPU
+                                </div>
+                                <div className="p-1.5 rounded-lg bg-surface-card border border-border-hairline">
+                                  <strong className="text-text-primary">{p.maxProyectos}</strong> Proy.
+                                </div>
+                                <div className="p-1.5 rounded-lg bg-surface-card border border-primary/30 text-primary">
+                                  <strong>{p.maxMiembros ?? 5}</strong> Miembros
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPlanPreseleccionado(p);
+                                setConTokenInvitacion(false);
+                                cambiarModo('registro');
+                              }}
+                              className={`w-full py-2 rounded-xl text-xs font-semibold cursor-pointer ${
+                                p.destacado
+                                  ? 'bg-primary text-[var(--hs-on-accent)]'
+                                  : 'bg-surface-card hover:bg-surface-card-elevated border border-border-hairline text-text-primary'
+                              }`}
+                            >
+                              Elegir y registrarme →
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* MODO 2: CREAR CUENTA (AUTO-REGISTRO CON WHATSAPP/TELEGRAM O TOKEN DE INVITACIÓN) */}
               {modo === 'registro' && (
                 <form onSubmit={manejarRegistroInvitacion} className="flex flex-col gap-3.5">
+                  {planPreseleccionado && !conTokenInvitacion && (
+                    <div className="p-2.5 rounded-xl bg-primary/12 border border-primary/30 flex items-center justify-between gap-2 text-xs">
+                      <span className="text-primary font-semibold">
+                        Plan elegido: {planPreseleccionado.nombre} (
+                        {cicloPlanes === 'anual' ? 'Anual' : 'Mensual'})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPlanPreseleccionado(null)}
+                        className="text-[11px] text-text-dim hover:text-text-primary cursor-pointer"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <h2 className="text-lg font-semibold text-text-primary">

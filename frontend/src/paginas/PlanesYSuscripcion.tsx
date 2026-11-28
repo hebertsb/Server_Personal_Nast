@@ -300,7 +300,7 @@ function TarjetaPlanVisual({
         </p>
 
         {/* Badges de recursos */}
-        <div className="grid grid-cols-3 gap-1.5 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-center">
           <div className="p-2 rounded-xl bg-surface-low border border-border-hairline">
             <div className="text-xs font-bold font-mono text-text-primary">{plan.cuotaRamMb} MB</div>
             <div className="text-[10px] text-text-dim">RAM</div>
@@ -312,6 +312,12 @@ function TarjetaPlanVisual({
           <div className="p-2 rounded-xl bg-surface-low border border-border-hairline">
             <div className="text-xs font-bold font-mono text-text-primary">{plan.maxProyectos}</div>
             <div className="text-[10px] text-text-dim">Proyectos</div>
+          </div>
+          <div className="p-2 rounded-xl bg-surface-low border border-border-hairline">
+            <div className="text-xs font-bold font-mono text-primary">
+              {plan.maxMiembros ?? 5}
+            </div>
+            <div className="text-[10px] text-text-dim">Miembros</div>
           </div>
         </div>
 
@@ -394,6 +400,7 @@ export default function PlanesYSuscripcion() {
   const [formRam, setFormRam] = useState('512');
   const [formCpu, setFormCpu] = useState('0.5');
   const [formMaxProy, setFormMaxProy] = useState('2');
+  const [formMaxMiembros, setFormMaxMiembros] = useState('5');
   const [formIaBasica, setFormIaBasica] = useState(false);
   const [formBeneficiosTexto, setFormBeneficiosTexto] = useState('');
   const [formDestacado, setFormDestacado] = useState(false);
@@ -418,6 +425,20 @@ export default function PlanesYSuscripcion() {
       setPlanes(resP.planes ?? []);
       setCobro(resC.cobro);
       setSolicitudes(resS.solicitudes ?? []);
+
+      // Si viene recién registrado desde el catálogo público (/planes?plan=...&ciclo=...), abrir pago directo
+      const params = new URLSearchParams(window.location.search);
+      const planUrlId = params.get('plan');
+      const cicloUrl = params.get('ciclo') === 'anual' ? 'anual' : 'mensual';
+      if (planUrlId) {
+        const encontrado = (resP.planes ?? []).find((p) => p.id === planUrlId || p.codigo === planUrlId);
+        if (encontrado) {
+          setCicloTienda(cicloUrl);
+          setCicloModal(cicloUrl);
+          setPlanElegido(encontrado);
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof ErrorApi ? err.message : 'No se pudieron cargar los planes');
@@ -441,6 +462,7 @@ export default function PlanesYSuscripcion() {
     setFormRam(String(p.cuotaRamMb));
     setFormCpu(String(p.cuotaCpu));
     setFormMaxProy(String(p.maxProyectos));
+    setFormMaxMiembros(String(p.maxMiembros ?? 5));
     setFormIaBasica(p.iaBasicaHabilitada);
     setFormBeneficiosTexto(p.beneficios.join('\n'));
     setFormDestacado(p.destacado);
@@ -460,6 +482,7 @@ export default function PlanesYSuscripcion() {
     setFormRam('512');
     setFormCpu('0.5');
     setFormMaxProy('2');
+    setFormMaxMiembros('5');
     setFormIaBasica(false);
     setFormBeneficiosTexto('');
     setFormDestacado(false);
@@ -477,6 +500,7 @@ export default function PlanesYSuscripcion() {
     cuotaRamMb: Number(formRam) || 512,
     cuotaCpu: Number(formCpu) || 0.5,
     maxProyectos: Number(formMaxProy) || 2,
+    maxMiembros: Math.max(1, Math.min(50, Number(formMaxMiembros) || 5)),
     iaBasicaHabilitada: formIaBasica,
     beneficios: formBeneficiosTexto
       .split(/\r?\n/)
@@ -1007,7 +1031,18 @@ export default function PlanesYSuscripcion() {
                   value={formMaxProy}
                   onChange={(e) => setFormMaxProy(e.target.value)}
                   placeholder="Máx proy"
+                  title="Máximo de proyectos"
                   className="rounded-xl bg-surface-low border border-border-hairline px-2.5 py-2 text-xs font-mono text-text-primary"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={formMaxMiembros}
+                  onChange={(e) => setFormMaxMiembros(e.target.value)}
+                  placeholder="Miembros"
+                  title="Máximo de miembros en equipo por proyecto"
+                  className="rounded-xl bg-surface-low border border-border-hairline px-2.5 py-2 text-xs font-mono text-primary"
                 />
               </div>
 
