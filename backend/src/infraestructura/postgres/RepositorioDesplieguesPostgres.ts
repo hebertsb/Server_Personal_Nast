@@ -28,6 +28,8 @@ interface FilaProyecto {
   nombre_completo: string;
   rama: string;
   puerto: number;
+  carpeta_raiz?: string | null;
+  subdominio?: string | null;
   tipo_proyecto: TipoProyectoDespliegue;
   modo_actualizacion: ModoActualizacionRepo;
   requiere_aprobacion: boolean;
@@ -86,6 +88,8 @@ function mapearProyecto(fila: FilaProyecto): ProyectoConectado {
     nombreCompleto: fila.nombre_completo,
     rama: fila.rama,
     puerto: Number(fila.puerto),
+    carpetaRaiz: fila.carpeta_raiz || '/',
+    subdominio: fila.subdominio || '',
     tipoProyecto: fila.tipo_proyecto,
     modoActualizacion: fila.modo_actualizacion,
     requiereAprobacion: Boolean(fila.requiere_aprobacion),
@@ -151,9 +155,10 @@ export class RepositorioDesplieguesPostgres implements RepositorioDespliegues {
       const res = await this.pool.query<FilaProyecto>(
         `INSERT INTO repositorios_conectados (
            usuario_id, repo_github_id, nombre_proyecto, nombre_completo,
-           rama, puerto, tipo_proyecto, modo_actualizacion, requiere_aprobacion, ultimo_commit_sha
+           rama, puerto, carpeta_raiz, subdominio, tipo_proyecto, modo_actualizacion,
+           requiere_aprobacion, ultimo_commit_sha
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING *, '0'::text AS total_variables`,
         [
           datos.usuarioId,
@@ -162,6 +167,8 @@ export class RepositorioDesplieguesPostgres implements RepositorioDespliegues {
           datos.nombreCompleto,
           datos.rama,
           datos.puerto,
+          datos.carpetaRaiz || '/',
+          datos.subdominio || '',
           datos.tipoProyecto,
           datos.modoActualizacion,
           datos.requiereAprobacion,

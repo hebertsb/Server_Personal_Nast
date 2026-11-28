@@ -19,6 +19,12 @@ export const esquemaDetectarProyecto = z.object({
     .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, 'Formato esperado: propietario/repositorio'),
   rama: z.string().trim().min(1).max(100).default('main'),
   puerto: z.coerce.number().int().min(1024).max(65535).default(3000),
+  carpetaRaiz: z
+    .string()
+    .trim()
+    .max(200)
+    .refine((v) => !v.includes('..'), 'Carpeta raíz inválida')
+    .default('/'),
 });
 
 export const esquemaCrearProyecto = z.object({
@@ -35,11 +41,37 @@ export const esquemaCrearProyecto = z.object({
     .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, 'Formato esperado: propietario/repositorio'),
   rama: z.string().trim().min(1).max(100).default('main'),
   puerto: z.coerce.number().int().min(1024).max(65535),
+  carpetaRaiz: z
+    .string()
+    .trim()
+    .max(200)
+    .refine((v) => !v.includes('..'), 'Carpeta raíz inválida')
+    .default('/'),
+  subdominio: z
+    .string()
+    .trim()
+    .max(120)
+    .regex(/^[a-z0-9-]*$/, 'El subdominio solo permite minúsculas, números y guiones')
+    .default(''),
   tipoProyecto: z.enum(['dockerfile', 'nodejs', 'html_estatico']).optional(),
   modoActualizacion: z.enum(['webhook', 'polling']).default('polling'),
   requiereAprobacion: z.boolean().default(false),
   ultimoCommitSha: z.string().trim().max(40).nullable().optional(),
   desplegarAhora: z.boolean().default(true),
+  variablesIniciales: z
+    .array(
+      z.object({
+        clave: z
+          .string()
+          .trim()
+          .min(1)
+          .max(120)
+          .regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'Clave de variable inválida'),
+        valor: z.string().min(1).max(4096),
+      }),
+    )
+    .max(100)
+    .optional(),
 });
 
 export const esquemaActualizarProyecto = z.object({
@@ -106,8 +138,16 @@ export class DesplieguesController {
     try {
       const ctx = this.contexto(req);
       if (!ctx) return this.sinSesion(res);
-      const { nombreCompleto, rama, puerto } = req.body as z.infer<typeof esquemaDetectarProyecto>;
-      const deteccion = await this.casoUso.detectarProyecto(nombreCompleto, rama, puerto, ctx);
+      const { nombreCompleto, rama, puerto, carpetaRaiz } = req.body as z.infer<
+        typeof esquemaDetectarProyecto
+      >;
+      const deteccion = await this.casoUso.detectarProyecto(
+        nombreCompleto,
+        rama,
+        puerto,
+        ctx,
+        carpetaRaiz,
+      );
       res.status(200).json({ deteccion });
     } catch (error) {
       next(error);

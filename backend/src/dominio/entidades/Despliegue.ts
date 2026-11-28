@@ -21,6 +21,8 @@ export interface ProyectoConectado {
   nombreCompleto: string;
   rama: string;
   puerto: number;
+  carpetaRaiz?: string;
+  subdominio?: string;
   tipoProyecto: TipoProyectoDespliegue;
   modoActualizacion: ModoActualizacionRepo;
   requiereAprobacion: boolean;
@@ -87,4 +89,6 @@ export interface ResultadoDeteccionProyecto {
   archivosEncontrados: string[];
   motivo: string;
   plantillaSugerida: string | null;
+  variablesSugeridas?: string[];
+  carpetaRaiz?: string;
 }

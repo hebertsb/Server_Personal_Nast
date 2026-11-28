@@ -52,11 +52,14 @@ export interface EntradaConectarProyecto {
   nombreCompleto: string;
   rama: string;
   puerto: number;
+  carpetaRaiz?: string;
+  subdominio?: string;
   tipoProyecto?: TipoProyectoDespliegue;
   modoActualizacion: ModoActualizacionRepo;
   requiereAprobacion: boolean;
   ultimoCommitSha?: string | null;
   desplegarAhora?: boolean;
+  variablesIniciales?: Array<{ clave: string; valor: string }>;
 }
 
 export interface OpcionesEjecucionDespliegue {
@@ -140,20 +143,57 @@ export class GestionarProyectosDespliegue {
     rama: string,
     puerto: number,
     ctx: ContextoDespliegue,
+    carpetaRaiz = '/',
   ): Promise<ResultadoDeteccionProyecto & { verificacion: ResultadoCadenaVerificacion }> {
     const conexion = await this.repoGithub.obtenerPorUsuario(ctx.usuarioId);
     if (!conexion) {
       throw new ErrorGithubNoConectado();
     }
     const token = this.cifrado.descifrar(conexion.tokenCifrado);
-    const archivos = await this.clienteGithub.listarArchivosRaiz(token, nombreCompleto, rama);
+    const carpetaLimpia = carpetaRaiz.replace(/^\/+|\/+$/g, '');
+    const archivos = await this.clienteGithub.listarArchivosRaiz(
+      token,
+      nombreCompleto,
+      rama,
+      carpetaLimpia || undefined,
+    );
     const { deteccion, verificacion } = ejecutarCadenaVerificacionDespliegue({
       nombreCompleto,
       rama,
       puerto,
       archivosRaiz: archivos,
     });
-    return { ...deteccion, verificacion };
+
+    // Extraer únicamente nombres de claves desde .env.example / .env.sample (nunca secretos)
+    const variablesSugeridas: string[] = [];
+    const archivoEjemplo = archivos.find((a) =>
+      /^\.env\.(example|sample|template)$/i.test(a),
+    );
+    if (archivoEjemplo && this.clienteGithub.obtenerContenidoArchivo) {
+      const rutaCompleta = carpetaLimpia
+        ? `${carpetaLimpia}/${archivoEjemplo}`
+        : archivoEjemplo;
+      const contenido = await this.clienteGithub
+        .obtenerContenidoArchivo(token, nombreCompleto, rama, rutaCompleta)
+        .catch(() => null);
+      if (contenido) {
+        for (const linea of contenido.split(/\r?\n/)) {
+          const limpia = linea.trim();
+          if (!limpia || limpia.startsWith('#')) continue;
+          const match = limpia.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=/);
+          if (match && !variablesSugeridas.includes(match[1])) {
+            variablesSugeridas.push(match[1]);
+          }
+        }
+      }
+    }
+
+    return {
+      ...deteccion,
+      variablesSugeridas,
+      carpetaRaiz: carpetaLimpia ? `/${carpetaLimpia}` : '/',
+      verificacion,
+    };
   }
 
   public async listarProyectos(): Promise<ProyectoConectado[]> {
@@ -166,6 +206,9 @@ export class GestionarProyectosDespliegue {
   ): Promise<{ proyecto: ProyectoConectado; despliegueInicial: DespliegueRegistro | null }> {
     this.exigirAdministrador(ctx);
 
+    const carpetaNormalizada = (entrada.carpetaRaiz ?? '/').replace(/^\/+|\/+$/g, '');
+    const carpetaFinal = carpetaNormalizada ? `/${carpetaNormalizada}` : '/';
+
     let tipoFinal = entrada.tipoProyecto;
     if (!tipoFinal) {
       const deteccion = await this.detectarProyecto(
@@ -173,6 +216,7 @@ export class GestionarProyectosDespliegue {
         entrada.rama,
         entrada.puerto,
         ctx,
+        carpetaFinal,
       );
       if (!deteccion.tipoDetectado) {
         throw new ErrorTipoProyectoNoSoportado(deteccion.motivo);
@@ -187,11 +231,23 @@ export class GestionarProyectosDespliegue {
       nombreCompleto: entrada.nombreCompleto.trim(),
       rama: entrada.rama.trim(),
       puerto: entrada.puerto,
+      carpetaRaiz: carpetaFinal,
+      subdominio: (entrada.subdominio ?? '').trim().toLowerCase(),
       tipoProyecto: tipoFinal,
       modoActualizacion: entrada.modoActualizacion,
       requiereAprobacion: entrada.requiereAprobacion,
       ultimoCommitSha: entrada.ultimoCommitSha ?? null,
     });
+
+    // Guardar variables iniciales cifradas con AES-256-GCM ANTES del primer despliegue
+    if (entrada.variablesIniciales && entrada.variablesIniciales.length > 0) {
+      for (const v of entrada.variablesIniciales) {
+        const clave = v.clave.trim();
+        if (!clave || !v.valor) continue;
+        const cifrado = this.cifrado.cifrar(v.valor);
+        await this.repoDespliegues.guardarVariable(proyecto.id, clave, cifrado);
+      }
+    }
 
     await this.auditoria.registrar({
       usuarioId: ctx.usuarioId,
@@ -201,9 +257,12 @@ export class GestionarProyectosDespliegue {
       direccionIp: ctx.direccionIp,
       detalles: {
         repositorio: proyecto.nombreCompleto,
+        carpetaRaiz: carpetaFinal,
+        subdominio: proyecto.subdominio || null,
         tipoProyecto: proyecto.tipoProyecto,
         puerto: proyecto.puerto,
         modoActualizacion: proyecto.modoActualizacion,
+        variablesInicialesCargadas: entrada.variablesIniciales?.length ?? 0,
       },
     });
 
@@ -502,6 +561,8 @@ export class GestionarProyectosDespliegue {
         rama: proyecto.rama,
         commitSha,
         puerto: proyecto.puerto,
+        carpetaRaiz: proyecto.carpetaRaiz,
+        subdominio: proyecto.subdominio,
         tipoProyecto: proyecto.tipoProyecto,
         plantillaDockerfile: plantilla,
         tokenGithub: tokenPlano,

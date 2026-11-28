@@ -18,6 +18,8 @@ export interface DatosCrearProyecto {
   nombreCompleto: string;
   rama: string;
   puerto: number;
+  carpetaRaiz?: string;
+  subdominio?: string;
   tipoProyecto: TipoProyectoDespliegue;
   modoActualizacion: ModoActualizacionRepo;
   requiereAprobacion: boolean;

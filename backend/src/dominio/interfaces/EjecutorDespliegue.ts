@@ -7,6 +7,8 @@ export interface EntradaEjecucionDespliegue {
   rama: string;
   commitSha: string;
   puerto: number;
+  carpetaRaiz?: string;
+  subdominio?: string;
   tipoProyecto: TipoProyectoDespliegue;
   plantillaDockerfile: string | null;
   tokenGithub: string;

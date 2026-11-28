@@ -61,8 +61,21 @@ export class EjecutorDespliegueDocker implements EjecutorDespliegue {
         { timeout: 120_000, maxBuffer: 4 * 1024 * 1024 },
       );
 
+      // Resolver carpeta raíz (soporte para monorepos/microservicios sin path traversal)
+      const carpetaLimpia = (entrada.carpetaRaiz ?? '/').replace(/^\/+|\/+$/g, '');
+      const dirRaizResuelto = path.resolve(dirTrabajo);
+      const dirContexto = carpetaLimpia
+        ? path.resolve(dirRaizResuelto, carpetaLimpia)
+        : dirRaizResuelto;
+      if (
+        dirContexto !== dirRaizResuelto &&
+        !dirContexto.startsWith(`${dirRaizResuelto}${path.sep}`)
+      ) {
+        throw new Error('Carpeta raíz inválida (fuera del repositorio).');
+      }
+
       // Si no trae Dockerfile propio, escribir la plantilla base (Node.js o HTML estático)
-      const rutaDockerfile = path.join(dirTrabajo, 'Dockerfile');
+      const rutaDockerfile = path.join(dirContexto, 'Dockerfile');
       let tieneDockerfile = true;
       try {
         await fs.access(rutaDockerfile);
@@ -75,10 +88,12 @@ export class EjecutorDespliegueDocker implements EjecutorDespliegue {
         logs.push(`[HomeSOC] Plantilla Dockerfile generada automáticamente (${entrada.tipoProyecto}).`);
       }
 
-      logs.push(`[HomeSOC] Construyendo imagen Docker ${etiquetaImagen}…`);
+      logs.push(
+        `[HomeSOC] Construyendo imagen Docker ${etiquetaImagen} (carpeta: /${carpetaLimpia})…`,
+      );
       const buildRes = await execFileAsync(
         'docker',
-        ['build', '-t', etiquetaImagen, '-t', `${nombreContenedor}:latest`, dirTrabajo],
+        ['build', '-t', etiquetaImagen, '-t', `${nombreContenedor}:latest`, dirContexto],
         { timeout: 300_000, maxBuffer: 8 * 1024 * 1024 },
       );
       if (buildRes.stdout) logs.push(buildRes.stdout.slice(-2000));
@@ -99,10 +114,21 @@ export class EjecutorDespliegueDocker implements EjecutorDespliegue {
         nombreContenedor,
         '--restart',
         'unless-stopped',
+        '--memory',
+        '512m',
+        '--cpus',
+        '0.75',
+        '--pids-limit',
+        '128',
+        '--security-opt',
+        'no-new-privileges:true',
         '--label',
         'homesoc.managed=true',
         '--label',
         `homesoc.proyecto=${entrada.nombreProyecto}`,
+        ...(entrada.subdominio
+          ? ['--label', `homesoc.subdominio=${entrada.subdominio}`]
+          : []),
         '-p',
         `${entrada.puerto}:${puertoContenedor}`,
         '-e',

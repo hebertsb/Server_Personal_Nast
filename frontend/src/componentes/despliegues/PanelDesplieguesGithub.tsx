@@ -73,6 +73,30 @@ function extraerReporteSalud(logHealthCheck?: string | null): ReporteSaludDespli
   }
 }
 
+function parsearBloqueEnv(texto: string): Array<{ clave: string; valor: string }> {
+  const resultado: Array<{ clave: string; valor: string }> = [];
+  const vistas = new Set<string>();
+  for (const linea of texto.split(/\r?\n/)) {
+    const limpia = linea.trim();
+    if (!limpia || limpia.startsWith('#')) continue;
+    const idx = limpia.indexOf('=');
+    if (idx <= 0) continue;
+    const clave = limpia.slice(0, idx).trim();
+    let valor = limpia.slice(idx + 1).trim();
+    if (
+      (valor.startsWith('"') && valor.endsWith('"')) ||
+      (valor.startsWith("'") && valor.endsWith("'"))
+    ) {
+      valor = valor.slice(1, -1);
+    }
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(clave) && valor.length > 0 && !vistas.has(clave)) {
+      vistas.add(clave);
+      resultado.push({ clave, valor });
+    }
+  }
+  return resultado;
+}
+
 export default function PanelDesplieguesGithub() {
   const { tokenAcceso, usuario } = usarAutenticacion();
   const [conexion, setConexion] = useState<ConexionGithubItem | null>(null);
@@ -94,6 +118,9 @@ export default function PanelDesplieguesGithub() {
 
   // Estado del asistente guiado de despliegue (RF-30, RF-31)
   const [repoEnAsistente, setRepoEnAsistente] = useState<RepositorioGithubItem | null>(null);
+  const [carpetaRaizAsistente, setCarpetaRaizAsistente] = useState('/');
+  const [subdominioAsistente, setSubdominioAsistente] = useState('');
+  const [bloqueEnvAsistente, setBloqueEnvAsistente] = useState('');
   const [deteccion, setDeteccion] = useState<ResultadoDeteccionItem | null>(null);
   const [detectando, setDetectando] = useState(false);
   const [puertoAsistente, setPuertoAsistente] = useState('4100');
@@ -292,6 +319,14 @@ export default function PanelDesplieguesGithub() {
     setDetectando(true);
     setModoAsistente('polling');
     setAprobacionAsistente(false);
+    setCarpetaRaizAsistente('/');
+    const slugSubdominio = repo.nombre
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48);
+    setSubdominioAsistente(slugSubdominio);
+    setBloqueEnvAsistente('');
     try {
       const sug = await githubServicio
         .sugerirPuerto(tokenAcceso)
@@ -304,13 +339,42 @@ export default function PanelDesplieguesGithub() {
           nombreCompleto: repo.nombreCompleto,
           rama: repo.ramaPrincipal,
           puerto: puertoSugerido,
+          carpetaRaiz: '/',
         },
         tokenAcceso,
       );
       setDeteccion(res);
+      if (res.variablesSugeridas && res.variablesSugeridas.length > 0) {
+        setBloqueEnvAsistente(res.variablesSugeridas.map((k) => `${k}=`).join('\n'));
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof ErrorApi ? err.message : 'No se pudo inspeccionar el repositorio');
+    } finally {
+      setDetectando(false);
+    }
+  };
+
+  const reverificarCarpetaAsistente = async () => {
+    if (!tokenAcceso || !repoEnAsistente) return;
+    setDetectando(true);
+    try {
+      const { deteccion: res } = await githubServicio.detectarProyecto(
+        {
+          nombreCompleto: repoEnAsistente.nombreCompleto,
+          rama: repoEnAsistente.ramaPrincipal,
+          puerto: Number(puertoAsistente) || 4100,
+          carpetaRaiz: carpetaRaizAsistente.trim() || '/',
+        },
+        tokenAcceso,
+      );
+      setDeteccion(res);
+      if (res.variablesSugeridas && res.variablesSugeridas.length > 0 && !bloqueEnvAsistente.trim()) {
+        setBloqueEnvAsistente(res.variablesSugeridas.map((k) => `${k}=`).join('\n'));
+      }
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ErrorApi ? err.message : 'No se pudo verificar la carpeta');
     } finally {
       setDetectando(false);
     }
@@ -321,24 +385,40 @@ export default function PanelDesplieguesGithub() {
     if (!tokenAcceso || !repoEnAsistente || !deteccion?.tipoDetectado) return;
     setCreandoProyecto(true);
     try {
+      const variablesIniciales = parsearBloqueEnv(bloqueEnvAsistente);
+      const carpetaLimpia = carpetaRaizAsistente.trim().replace(/^\/+|\/+$/g, '');
+      const nombreFinal = carpetaLimpia
+        ? `${repoEnAsistente.nombre}-${carpetaLimpia.replace(/[^a-zA-Z0-9_-]+/g, '-')}`
+        : repoEnAsistente.nombre;
+
       const { proyecto } = await githubServicio.crearProyecto(
         {
           repoGithubId: repoEnAsistente.id,
-          nombreProyecto: repoEnAsistente.nombre,
+          nombreProyecto: nombreFinal,
           nombreCompleto: repoEnAsistente.nombreCompleto,
           rama: repoEnAsistente.ramaPrincipal,
           puerto: Number(puertoAsistente),
+          carpetaRaiz: carpetaLimpia ? `/${carpetaLimpia}` : '/',
+          subdominio: subdominioAsistente.trim().toLowerCase(),
           tipoProyecto: deteccion.tipoDetectado,
           modoActualizacion: modoAsistente,
           requiereAprobacion: aprobacionAsistente,
           ultimoCommitSha: repoEnAsistente.ultimoCommit?.sha ?? null,
           desplegarAhora: true,
+          variablesIniciales,
         },
         tokenAcceso,
       );
       setRepoEnAsistente(null);
       setDeteccion(null);
-      setAviso(`Proyecto "${proyecto.nombreProyecto}" desplegado en el puerto ${proyecto.puerto}`);
+      setBloqueEnvAsistente('');
+      setAviso(
+        `Proyecto "${proyecto.nombreProyecto}" desplegado en el puerto ${proyecto.puerto}${
+          variablesIniciales.length > 0
+            ? ` con ${variablesIniciales.length} variable(s) cifrada(s) inyectada(s)`
+            : ''
+        }`,
+      );
       await cargarTodo();
       abrirDetalle(proyecto.id, 'historial');
     } catch (err) {
@@ -745,6 +825,30 @@ export default function PanelDesplieguesGithub() {
             </div>
           ) : deteccion ? (
             <div className="flex flex-col gap-3">
+              {/* Selector de Carpeta Raíz (Monorepos / Microservicios) */}
+              <div className="rounded-xl bg-surface-low border border-border-hairline p-3.5 flex flex-col sm:flex-row sm:items-end gap-2.5">
+                <div className="flex-1">
+                  <label className="text-[11px] font-semibold text-text-primary block mb-1">
+                    Carpeta raíz del servicio (Monorepo / Microservicio)
+                  </label>
+                  <input
+                    type="text"
+                    value={carpetaRaizAsistente}
+                    onChange={(e) => setCarpetaRaizAsistente(e.target.value)}
+                    placeholder="/ (o ej. /backend, /frontend, /services/pagos)"
+                    className="w-full rounded-xl bg-surface-card border border-border-hairline px-3 py-2 text-xs font-mono text-text-primary"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={detectando}
+                  onClick={() => void reverificarCarpetaAsistente()}
+                  className="px-3.5 py-2 rounded-xl border border-primary/35 bg-primary/10 text-primary text-xs font-semibold cursor-pointer whitespace-nowrap disabled:opacity-50"
+                >
+                  Re-verificar carpeta
+                </button>
+              </div>
+
               {/* Cadena de Verificación Pre-Despliegue (Chain of Responsibility) */}
               {deteccion.verificacion && (
                 <div className="rounded-xl bg-surface-low border border-border-hairline p-4 space-y-3">
@@ -874,43 +978,90 @@ export default function PanelDesplieguesGithub() {
               )}
 
               {deteccion.tipoDetectado && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-[11px] text-text-dim block mb-1">Puerto interno</label>
-                    <input
-                      type="number"
-                      min={1024}
-                      max={65535}
-                      value={puertoAsistente}
-                      onChange={(e) => setPuertoAsistente(e.target.value)}
-                      className="w-full rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs font-mono text-text-primary"
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-[11px] text-text-dim block mb-1">Puerto interno</label>
+                      <input
+                        type="number"
+                        min={1024}
+                        max={65535}
+                        value={puertoAsistente}
+                        onChange={(e) => setPuertoAsistente(e.target.value)}
+                        className="w-full rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs font-mono text-text-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-text-dim block mb-1">
+                        Subdominio (listo para proxy/SSL)
+                      </label>
+                      <input
+                        type="text"
+                        value={subdominioAsistente}
+                        onChange={(e) =>
+                          setSubdominioAsistente(
+                            e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+                          )
+                        }
+                        placeholder="ej. app-juan"
+                        className="w-full rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs font-mono text-text-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-text-dim block mb-1">
+                        Detección de commits (RF-32)
+                      </label>
+                      <select
+                        value={modoAsistente}
+                        onChange={(e) => setModoAsistente(e.target.value as ModoActualizacionRepo)}
+                        className="w-full rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs text-text-primary"
+                      >
+                        <option value="polling">Polling (cada 1–2 min, sin puertos)</option>
+                        <option value="webhook">Webhook GitHub (HMAC)</option>
+                      </select>
+                    </div>
+                    <div className="flex items-end pb-1.5">
+                      <label className="inline-flex items-center gap-2 text-xs text-text-primary cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={aprobacionAsistente}
+                          onChange={(e) => setAprobacionAsistente(e.target.checked)}
+                          className="accent-[var(--hs-accent)]"
+                        />
+                        <span>Requerir aprobación manual (RF-35)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Paso 2: Variables de Entorno ANTES de confirmar y desplegar */}
+                  <div className="rounded-xl bg-surface-low border border-primary/25 p-4 flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[16px] text-primary">
+                            vpn_key
+                          </span>
+                          <span>Variables de Entorno (se cifran e inyectan ANTES del arranque)</span>
+                        </div>
+                        <p className="text-[11px] text-text-muted mt-0.5">
+                          {deteccion.variablesSugeridas && deteccion.variablesSugeridas.length > 0
+                            ? `Detectamos ${deteccion.variablesSugeridas.length} clave(s) en .env.example. Completa los valores o pega tu .env completo en bloque:`
+                            : 'Pega aquí tus variables en bloque (una por línea: CLAVE=VALOR). Se cifran con AES-256-GCM en PostgreSQL antes de iniciar el contenedor.'}
+                        </p>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-primary/12 text-primary text-[11px] font-mono font-semibold">
+                        {parsearBloqueEnv(bloqueEnvAsistente).length} lista(s)
+                      </span>
+                    </div>
+                    <textarea
+                      rows={5}
+                      value={bloqueEnvAsistente}
+                      onChange={(e) => setBloqueEnvAsistente(e.target.value)}
+                      placeholder={'DATABASE_URL=postgres://...\nJWT_SECRET=...\nAPI_KEY=...'}
+                      className="w-full rounded-xl bg-surface-card border border-border-hairline px-3 py-2 text-xs font-mono text-text-primary placeholder:text-text-dim focus:outline-none focus:border-primary"
                     />
                   </div>
-                  <div>
-                    <label className="text-[11px] text-text-dim block mb-1">
-                      Detección de commits (RF-32)
-                    </label>
-                    <select
-                      value={modoAsistente}
-                      onChange={(e) => setModoAsistente(e.target.value as ModoActualizacionRepo)}
-                      className="w-full rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs text-text-primary"
-                    >
-                      <option value="polling">Polling (cada 1–2 min, sin puertos)</option>
-                      <option value="webhook">Webhook GitHub (HMAC)</option>
-                    </select>
-                  </div>
-                  <div className="flex items-end pb-1.5">
-                    <label className="inline-flex items-center gap-2 text-xs text-text-primary cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={aprobacionAsistente}
-                        onChange={(e) => setAprobacionAsistente(e.target.checked)}
-                        className="accent-[var(--hs-accent)]"
-                      />
-                      <span>Requerir aprobación manual (RF-35)</span>
-                    </label>
-                  </div>
-                </div>
+                </>
               )}
 
               <div className="flex items-center justify-end gap-2 pt-1">

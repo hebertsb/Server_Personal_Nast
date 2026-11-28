@@ -100,6 +100,8 @@ export interface ResultadoDeteccionItem {
   archivosEncontrados: string[];
   motivo: string;
   plantillaSugerida: string | null;
+  variablesSugeridas?: string[];
+  carpetaRaiz?: string;
   verificacion?: ResultadoCadenaVerificacionItem;
 }
 
@@ -139,7 +141,7 @@ export const githubServicio = {
     apiCliente.get<{ proyectos: ProyectoConectadoItem[] }>('/despliegues/proyectos', tokenAcceso),
 
   detectarProyecto: (
-    datos: { nombreCompleto: string; rama: string; puerto: number },
+    datos: { nombreCompleto: string; rama: string; puerto: number; carpetaRaiz?: string },
     tokenAcceso: string,
   ): Promise<{ deteccion: ResultadoDeteccionItem }> =>
     apiCliente.post<{ deteccion: ResultadoDeteccionItem }>(
@@ -155,11 +157,14 @@ export const githubServicio = {
       nombreCompleto: string;
       rama: string;
       puerto: number;
+      carpetaRaiz?: string;
+      subdominio?: string;
       tipoProyecto?: TipoProyectoDespliegue;
       modoActualizacion: ModoActualizacionRepo;
       requiereAprobacion: boolean;
       ultimoCommitSha?: string | null;
       desplegarAhora?: boolean;
+      variablesIniciales?: Array<{ clave: string; valor: string }>;
     },
     tokenAcceso: string,
   ): Promise<{

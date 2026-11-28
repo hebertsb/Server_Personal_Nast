@@ -125,9 +125,14 @@ export class ClienteGithubApi implements ClienteGithub {
     token: string,
     nombreCompleto: string,
     rama: string,
+    subcarpeta?: string,
   ): Promise<string[]> {
+    const rutaLimpia = (subcarpeta ?? '').replace(/^\/+|\/+$/g, '');
+    const segmentoRuta = rutaLimpia
+      ? `/${rutaLimpia.split('/').map(encodeURIComponent).join('/')}`
+      : '';
     const respuesta = await this.solicitar(
-      `/repos/${nombreCompleto}/contents?ref=${encodeURIComponent(rama)}`,
+      `/repos/${nombreCompleto}/contents${segmentoRuta}?ref=${encodeURIComponent(rama)}`,
       token,
     );
     if (respuesta.status === 401 || respuesta.status === 403) {
@@ -140,5 +145,26 @@ export class ClienteGithubApi implements ClienteGithub {
     return Array.isArray(items)
       ? items.map((i) => i.name ?? '').filter(Boolean)
       : [];
+  }
+
+  public async obtenerContenidoArchivo(
+    token: string,
+    nombreCompleto: string,
+    rama: string,
+    rutaArchivo: string,
+  ): Promise<string | null> {
+    const rutaLimpia = rutaArchivo.replace(/^\/+|\/+$/g, '');
+    const segmento = rutaLimpia.split('/').map(encodeURIComponent).join('/');
+    const respuesta = await this.solicitar(
+      `/repos/${nombreCompleto}/contents/${segmento}?ref=${encodeURIComponent(rama)}`,
+      token,
+    );
+    if (!respuesta.ok) return null;
+    const data = (await respuesta.json()) as { content?: string; encoding?: string };
+    if (!data.content) return null;
+    if (data.encoding === 'base64') {
+      return Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString('utf8');
+    }
+    return data.content;
   }
 }
