@@ -57,9 +57,54 @@ export interface RecomendacionPlanIa {
   consejoComercial: string;
 }
 
+export type TemaVisualOferta = 'azul_neon' | 'fuego_naranja' | 'esmeralda_soc' | 'purpura_ia';
+
+export interface OfertaBannerItem {
+  id: string;
+  etiqueta: string;
+  titulo: string;
+  subtitulo: string;
+  descuentoTexto: string;
+  temaVisual: TemaVisualOferta;
+  imagenFondoDataUrl: string;
+  fechaFinIso: string;
+  textoBoton: string;
+  activa: boolean;
+}
+
+export interface SugerenciaOfertaIa {
+  etiqueta: string;
+  titulo: string;
+  subtitulo: string;
+  descuentoTexto: string;
+  textoBoton: string;
+}
+
 export const planesServicio = {
   listarPlanesPublicos: (): Promise<{ planes: PlanHostingItem[] }> =>
     apiCliente.get<{ planes: PlanHostingItem[] }>('/planes/publicos'),
+
+  listarOfertasPublicas: (): Promise<{ ofertas: OfertaBannerItem[] }> =>
+    apiCliente.get<{ ofertas: OfertaBannerItem[] }>('/planes/ofertas-publicas'),
+
+  listarOfertasAdmin: (tokenAcceso: string): Promise<{ ofertas: OfertaBannerItem[] }> =>
+    apiCliente.get<{ ofertas: OfertaBannerItem[] }>('/planes/ofertas', tokenAcceso),
+
+  guardarOfertas: (
+    ofertas: OfertaBannerItem[],
+    tokenAcceso: string,
+  ): Promise<{ ofertas: OfertaBannerItem[] }> =>
+    apiCliente.put<{ ofertas: OfertaBannerItem[] }>('/planes/ofertas', { ofertas }, tokenAcceso),
+
+  sugerirOfertaIa: (
+    datos: { ocasion: string; descuentoPct: number },
+    tokenAcceso: string,
+  ): Promise<{ sugerencia: SugerenciaOfertaIa }> =>
+    apiCliente.post<{ sugerencia: SugerenciaOfertaIa }>(
+      '/planes/ofertas/sugerir-ia',
+      datos,
+      tokenAcceso,
+    ),
 
   listarPlanes: (tokenAcceso: string): Promise<{ planes: PlanHostingItem[] }> =>
     apiCliente.get<{ planes: PlanHostingItem[] }>('/planes', tokenAcceso),

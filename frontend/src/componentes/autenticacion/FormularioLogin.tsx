@@ -214,6 +214,17 @@ export default function FormularioLogin() {
         ]);
         if (!activo) return;
         setPlanesPublicos(resPlanes.planes ?? []);
+        const tokenUrl = searchParams.get('token')?.trim();
+        const modoUrl = searchParams.get('modo');
+        const planUrl = searchParams.get('plan')?.trim();
+        const cicloUrl = searchParams.get('ciclo') === 'anual' ? 'anual' : 'mensual';
+        if (planUrl) {
+          const enc = (resPlanes.planes ?? []).find((p) => p.id === planUrl || p.codigo === planUrl);
+          if (enc) {
+            setPlanPreseleccionado(enc);
+            setCicloPlanes(cicloUrl);
+          }
+        }
         setRequiereSetup(estado.requiereSetup);
         if (estado.requiereSetup) {
           setModo('setup');
@@ -224,7 +235,7 @@ export default function FormularioLogin() {
           }
           setModo('registro');
         } else if (modoUrl === 'planes') {
-          setModo('planes');
+          navigate('/precios', { replace: true });
         }
       } catch {
         // Si falla la consulta inicial, queda en modo login estándar
@@ -579,7 +590,13 @@ export default function FormularioLogin() {
                 key={tab.id}
                 type="button"
                 disabled={cargando || compuertaCerrada}
-                onClick={() => cambiarModo(tab.id)}
+                onClick={() => {
+                  if (tab.id === 'planes') {
+                    navigate('/precios');
+                    return;
+                  }
+                  cambiarModo(tab.id);
+                }}
                 className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   activo
                     ? 'bg-primary text-[var(--hs-on-accent)] shadow-sm'

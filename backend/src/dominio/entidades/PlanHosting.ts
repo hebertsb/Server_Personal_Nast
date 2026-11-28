@@ -50,3 +50,18 @@ export interface ConfiguracionCobro {
   qrImagenDataUrl: string;
   instrucciones: string;
 }
+
+export type TemaVisualOferta = 'azul_neon' | 'fuego_naranja' | 'esmeralda_soc' | 'purpura_ia';
+
+export interface OfertaBannerPlan {
+  id: string;
+  etiqueta: string;
+  titulo: string;
+  subtitulo: string;
+  descuentoTexto: string;
+  temaVisual: TemaVisualOferta;
+  imagenFondoDataUrl: string;
+  fechaFinIso: string;
+  textoBoton: string;
+  activa: boolean;
+}

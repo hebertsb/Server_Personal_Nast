@@ -2,6 +2,7 @@ import {
   CicloFacturacion,
   ConfiguracionCobro,
   MetodoPagoSuscripcion,
+  OfertaBannerPlan,
   PlanHosting,
   SolicitudSuscripcion,
 } from '../../dominio/entidades/PlanHosting';
@@ -366,5 +367,111 @@ export class GestionarPlanesYSuscripciones {
    */
   public async leerDatosQrConOcr(imagenDataUrl: string): Promise<DatosQrBancarioOcr> {
     return extraerDatosQrBancarioConOcr(imagenDataUrl);
+  }
+
+  private ofertasPorDefecto(): OfertaBannerPlan[] {
+    const enTresDias = new Date(Date.now() + 3 * 24 * 3_600_000).toISOString();
+    return [
+      {
+        id: 'lanzamiento-homesoc',
+        etiqueta: 'Oferta de Lanzamiento',
+        titulo: '¡Despliega tu proyecto de la U en tu propio servidor!',
+        subtitulo:
+          '20% de descuento en planes anuales • Incluye hasta 5 compañeros en equipo y Modo GPU Remota.',
+        descuentoTexto: '20% DTO ANUAL',
+        temaVisual: 'azul_neon',
+        imagenFondoDataUrl: '',
+        fechaFinIso: enTresDias,
+        textoBoton: 'Aprovechar oferta',
+        activa: true,
+      },
+      {
+        id: 'promo-equipos-uagrm',
+        etiqueta: 'Promo Grupos Universitarios',
+        titulo: '1 sola suscripción para todo tu equipo de proyecto',
+        subtitulo:
+          'Desde Bs 7 por estudiante al mes (Plan Pro dividido entre 5). Paga fácil con QR Simple.',
+        descuentoTexto: 'HASTA 8 MIEMBROS',
+        temaVisual: 'fuego_naranja',
+        imagenFondoDataUrl: '',
+        fechaFinIso: enTresDias,
+        textoBoton: 'Ver planes ahora',
+        activa: true,
+      },
+    ];
+  }
+
+  public async obtenerOfertasBanners(soloActivas = false): Promise<OfertaBannerPlan[]> {
+    let lista = this.ofertasPorDefecto();
+    if (this.repoUsuarios.obtenerPreferencia) {
+      const pref = await this.repoUsuarios.obtenerPreferencia('ofertas_banners_planes');
+      if (pref && Array.isArray(pref.ofertas)) {
+        lista = pref.ofertas as OfertaBannerPlan[];
+      }
+    }
+    return soloActivas ? lista.filter((o) => o.activa) : lista;
+  }
+
+  public async guardarOfertasBanners(
+    ofertas: OfertaBannerPlan[],
+    actor: { usuarioId: string; rol: RolUsuario; direccionIp: string },
+  ): Promise<OfertaBannerPlan[]> {
+    if (actor.rol !== 'superadmin') {
+      throw new ErrorDominio(
+        'PERMISOS_INSUFICIENTES',
+        'Solo el superadmin puede editar los banners de ofertas',
+        403,
+      );
+    }
+    if (this.repoUsuarios.guardarPreferencia) {
+      await this.repoUsuarios.guardarPreferencia('ofertas_banners_planes', { ofertas });
+    }
+    await this.auditoria.registrar({
+      usuarioId: actor.usuarioId,
+      accion: 'ofertas_banners_actualizar',
+      recurso: 'preferencias_sistema:ofertas_banners_planes',
+      origen: 'web',
+      direccionIp: actor.direccionIp,
+      detalles: { totalOfertas: ofertas.length, activas: ofertas.filter((o) => o.activa).length },
+    });
+    return ofertas;
+  }
+
+  public async sugerirOfertaConIA(entrada: {
+    ocasion: string;
+    descuentoPct: number;
+  }): Promise<{
+    etiqueta: string;
+    titulo: string;
+    subtitulo: string;
+    descuentoTexto: string;
+    textoBoton: string;
+  }> {
+    const ocasion = entrada.ocasion.trim() || 'Lanzamiento';
+    const pct = Math.max(5, Math.min(80, entrada.descuentoPct || 25));
+
+    let titulo = `¡Oferta especial de ${ocasion} por tiempo limitado!`;
+    let subtitulo = `Ahorra ${pct}% en tu servidor HomeSOC con despliegue directo desde GitHub, SSL y acceso para todo tu equipo.`;
+
+    if (this.asistenteIA) {
+      try {
+        const res = await this.asistenteIA.consultarAsistente(
+          `Escribe en 1 sola frase corta (máx 110 caracteres) un subtítulo comercial llamativo en español para una oferta de "${ocasion}" con ${pct}% de descuento en hosting universitario HomeSOC para estudiantes de ingeniería.`,
+        );
+        if (res?.respuesta && res.respuesta.length >= 20 && res.respuesta.length <= 180) {
+          subtitulo = res.respuesta.replace(/^["']|["']$/g, '').trim();
+        }
+      } catch {
+        // Mantiene la sugerencia determinista
+      }
+    }
+
+    return {
+      etiqueta: ocasion,
+      titulo,
+      subtitulo,
+      descuentoTexto: `HASTA ${pct}% DTO`,
+      textoBoton: 'Aprovechar ahora',
+    };
   }
 }

@@ -78,6 +78,38 @@ export const esquemaLeerQrOcr = z.object({
     ),
 });
 
+export const esquemaOfertaBanner = z.object({
+  id: z.string().trim().min(1).max(80),
+  etiqueta: z.string().trim().min(1).max(60),
+  titulo: z.string().trim().min(2).max(140),
+  subtitulo: z.string().trim().max(260).default(''),
+  descuentoTexto: z.string().trim().max(40).default(''),
+  temaVisual: z
+    .enum(['azul_neon', 'fuego_naranja', 'esmeralda_soc', 'purpura_ia'])
+    .default('azul_neon'),
+  imagenFondoDataUrl: z
+    .string()
+    .max(950_000, 'La imagen de fondo del banner es demasiado pesada')
+    .refine(
+      (v) => v === '' || /^data:image\/(png|jpeg|jpg|webp);base64,/i.test(v),
+      'La imagen del banner debe ser PNG, JPG o WEBP',
+    )
+    .optional()
+    .default(''),
+  fechaFinIso: z.string().trim().max(60).optional().default(''),
+  textoBoton: z.string().trim().max(50).default('Ver planes'),
+  activa: z.coerce.boolean().default(true),
+});
+
+export const esquemaGuardarOfertas = z.object({
+  ofertas: z.array(esquemaOfertaBanner).max(10),
+});
+
+export const esquemaSugerirOfertaIa = z.object({
+  ocasion: z.string().trim().min(2).max(80).default('Black Friday'),
+  descuentoPct: z.coerce.number().int().min(5).max(80).default(25),
+});
+
 export class PlanesController {
   constructor(private readonly casoUso: GestionarPlanesYSuscripciones) {}
 
@@ -294,6 +326,66 @@ export class PlanesController {
       const { imagenDataUrl } = req.body as z.infer<typeof esquemaLeerQrOcr>;
       const datos = await this.casoUso.leerDatosQrConOcr(imagenDataUrl);
       res.status(200).json({ datos });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public listarOfertasPublicas = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const ofertas = await this.casoUso.obtenerOfertasBanners(true);
+      res.status(200).json({ ofertas });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public listarOfertasAdmin = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const ofertas = await this.casoUso.obtenerOfertasBanners(false);
+      res.status(200).json({ ofertas });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public guardarOfertas = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const u = req.usuarioAutenticado;
+      if (!u) throw new ErrorTokenInvalido();
+      const { ofertas } = req.body as z.infer<typeof esquemaGuardarOfertas>;
+      const guardadas = await this.casoUso.guardarOfertasBanners(ofertas, {
+        usuarioId: u.sub,
+        rol: u.rol,
+        direccionIp: req.ip || req.socket.remoteAddress || 'desconocida',
+      });
+      res.status(200).json({ ofertas: guardadas });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public sugerirOfertaIa = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const body = req.body as z.infer<typeof esquemaSugerirOfertaIa>;
+      const sugerencia = await this.casoUso.sugerirOfertaConIA(body);
+      res.status(200).json({ sugerencia });
     } catch (error) {
       next(error);
     }

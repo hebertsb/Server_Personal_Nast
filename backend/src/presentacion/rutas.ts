@@ -34,10 +34,12 @@ import { HealthController } from './controladores/HealthController';
 import {
   esquemaConfigCobro,
   esquemaCrearSolicitud,
+  esquemaGuardarOfertas,
   esquemaLeerQrOcr,
   esquemaPlanHosting,
   esquemaRecomendarPlanIa,
   esquemaRevisarSolicitud,
+  esquemaSugerirOfertaIa,
   PlanesController,
 } from './controladores/PlanesController';
 import {
@@ -543,6 +545,26 @@ export function crearRutas(deps: DependenciasRutas): Router {
 
   if (deps.planesController) {
     routerApiV1.get('/planes/publicos', deps.planesController.listarPlanesPublicos);
+    routerApiV1.get('/planes/ofertas-publicas', deps.planesController.listarOfertasPublicas);
+    routerApiV1.get(
+      '/planes/ofertas',
+      deps.middlewareAutenticacion,
+      deps.planesController.listarOfertasAdmin,
+    );
+    routerApiV1.put(
+      '/planes/ofertas',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaGuardarOfertas),
+      deps.planesController.guardarOfertas,
+    );
+    routerApiV1.post(
+      '/planes/ofertas/sugerir-ia',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaSugerirOfertaIa),
+      deps.planesController.sugerirOfertaIa,
+    );
     routerApiV1.get('/planes', deps.middlewareAutenticacion, deps.planesController.listarPlanes);
     routerApiV1.post(
       '/planes',

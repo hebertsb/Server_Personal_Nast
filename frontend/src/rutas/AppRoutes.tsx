@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { usarAutenticacion } from '../contexto/ContextoAutenticacion';
 import { ModuloSistema } from '../servicios/autenticacionServicio';
 import Login from '../paginas/Login';
+import PreciosPublicos from '../paginas/PreciosPublicos';
 import RecursosServidor from '../paginas/RecursosServidor';
 import ServiciosYDespliegues from '../paginas/ServiciosYDespliegues';
 import RedYConectividad from '../paginas/RedYConectividad';
@@ -55,6 +56,7 @@ export default function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/precios" element={<PreciosPublicos />} />
         <Route path="/registro" element={<Navigate to="/login?modo=registro" replace />} />
 
         {/* Rutas protegidas por sesión y permiso de módulo */}

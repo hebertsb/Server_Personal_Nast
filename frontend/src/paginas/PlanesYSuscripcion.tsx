@@ -1,18 +1,24 @@
 import { ChangeEvent, DragEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import CarruselOfertasPlanes, {
+  TarjetaBannerOferta,
+} from '../componentes/planes/CarruselOfertasPlanes';
 import { usarAutenticacion } from '../contexto/ContextoAutenticacion';
 import { ErrorApi } from '../servicios/apiCliente';
 import {
   CicloFacturacion,
   ConfiguracionCobroItem,
   MetodoPagoSuscripcion,
+  OfertaBannerItem,
   PlanHostingItem,
   planesServicio,
   RecomendacionPlanIa,
   SolicitudSuscripcionItem,
+  TemaVisualOferta,
 } from '../servicios/planesServicio';
 import { recortarQrBancarioDesdeArchivo } from '../utilidades/recortarQrBancario';
 
-type PestanaPlanes = 'tienda' | 'editor' | 'cobros';
+type PestanaPlanes = 'tienda' | 'editor' | 'ofertas' | 'cobros';
 
 function calcularMontosAnual(precioMensual: number, descuentoAnualPct: number) {
   const pct = Math.max(0, Math.min(80, Number(descuentoAnualPct) || 0));
@@ -376,7 +382,24 @@ export default function PlanesYSuscripcion() {
     instrucciones: '',
   });
   const [solicitudes, setSolicitudes] = useState<SolicitudSuscripcionItem[]>([]);
+  const [ofertas, setOfertas] = useState<OfertaBannerItem[]>([]);
   const [cargando, setCargando] = useState(true);
+
+  // Editor de Ofertas / Banners Carrusel (Superadmin)
+  const [ofertaEditIdx, setOfertaEditIdx] = useState<number | null>(null);
+  const [ofEtiqueta, setOfEtiqueta] = useState('Black Friday');
+  const [ofTitulo, setOfTitulo] = useState('¡Oferta especial por tiempo limitado!');
+  const [ofSubtitulo, setOfSubtitulo] = useState(
+    'Despliega tus proyectos con descuento exclusivo y acceso para todo tu equipo.',
+  );
+  const [ofDescuento, setOfDescuento] = useState('30% DTO');
+  const [ofTema, setOfTema] = useState<TemaVisualOferta>('azul_neon');
+  const [ofImagen, setOfImagen] = useState('');
+  const [ofFechaFin, setOfFechaFin] = useState('');
+  const [ofBoton, setOfBoton] = useState('Aprovechar oferta');
+  const [ofActiva, setOfActiva] = useState(true);
+  const [generandoOfertaIa, setGenerandoOfertaIa] = useState(false);
+  const [guardandoOfertas, setGuardandoOfertas] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
@@ -417,14 +440,16 @@ export default function PlanesYSuscripcion() {
     if (!tokenAcceso) return;
     setCargando(true);
     try {
-      const [resP, resC, resS] = await Promise.all([
+      const [resP, resC, resS, resO] = await Promise.all([
         planesServicio.listarPlanes(tokenAcceso),
         planesServicio.obtenerCobro(tokenAcceso),
         planesServicio.listarSolicitudes(tokenAcceso),
+        planesServicio.listarOfertasAdmin(tokenAcceso).catch(() => ({ ofertas: [] })),
       ]);
       setPlanes(resP.planes ?? []);
       setCobro(resC.cobro);
       setSolicitudes(resS.solicitudes ?? []);
+      setOfertas(resO.ofertas ?? []);
 
       // Si viene recién registrado desde el catálogo público (/planes?plan=...&ciclo=...), abrir pago directo
       const params = new URLSearchParams(window.location.search);
@@ -706,6 +731,92 @@ export default function PlanesYSuscripcion() {
     }
   };
 
+  const ofertaPreview: OfertaBannerItem = {
+    id: ofertaEditIdx !== null && ofertas[ofertaEditIdx] ? ofertas[ofertaEditIdx].id : `of-${Date.now()}`,
+    etiqueta: ofEtiqueta,
+    titulo: ofTitulo,
+    subtitulo: ofSubtitulo,
+    descuentoTexto: ofDescuento,
+    temaVisual: ofTema,
+    imagenFondoDataUrl: ofImagen,
+    fechaFinIso: ofFechaFin ? new Date(ofFechaFin).toISOString() : '',
+    textoBoton: ofBoton,
+    activa: ofActiva,
+  };
+
+  const manejarSubirImagenOferta = (archivo?: File | null) => {
+    if (!archivo || !archivo.type.startsWith('image/')) return;
+    const lector = new FileReader();
+    lector.onload = () => {
+      if (typeof lector.result !== 'string') return;
+      const img = new Image();
+      img.onload = () => {
+        const esc = Math.min(1, 1000 / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * esc));
+        c.height = Math.max(1, Math.round(img.height * esc));
+        const ctx = c.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        setOfImagen(c.toDataURL('image/jpeg', 0.8));
+      };
+      img.src = lector.result;
+    };
+    lector.readAsDataURL(archivo);
+  };
+
+  const manejarSugerirOfertaIa = async () => {
+    if (!tokenAcceso || !esSuperadmin) return;
+    setGenerandoOfertaIa(true);
+    try {
+      const pctNum = parseInt(ofDescuento.replace(/\D/g, ''), 10) || 25;
+      const { sugerencia } = await planesServicio.sugerirOfertaIa(
+        { ocasion: ofEtiqueta || 'Lanzamiento', descuentoPct: pctNum },
+        tokenAcceso,
+      );
+      setOfEtiqueta(sugerencia.etiqueta);
+      setOfTitulo(sugerencia.titulo);
+      setOfSubtitulo(sugerencia.subtitulo);
+      setOfDescuento(sugerencia.descuentoTexto);
+      setOfBoton(sugerencia.textoBoton);
+      setAviso('Sugerencia de oferta generada con IA. Revisa la vista previa y guárdala.');
+    } catch (err) {
+      setError(err instanceof ErrorApi ? err.message : 'No se pudo generar la oferta con IA');
+    } finally {
+      setGenerandoOfertaIa(false);
+    }
+  };
+
+  const persistirOfertas = async (nuevaLista: OfertaBannerItem[], msgOk: string) => {
+    if (!tokenAcceso || !esSuperadmin) return;
+    setGuardandoOfertas(true);
+    setError(null);
+    try {
+      const { ofertas: guardadas } = await planesServicio.guardarOfertas(nuevaLista, tokenAcceso);
+      setOfertas(guardadas);
+      setAviso(msgOk);
+    } catch (err) {
+      setError(err instanceof ErrorApi ? err.message : 'No se pudieron guardar las ofertas');
+    } finally {
+      setGuardandoOfertas(false);
+    }
+  };
+
+  const manejarGuardarOferta = async () => {
+    if (!ofTitulo.trim()) {
+      setError('El título de la oferta es obligatorio.');
+      return;
+    }
+    const nuevaLista = [...ofertas];
+    if (ofertaEditIdx !== null && nuevaLista[ofertaEditIdx]) {
+      nuevaLista[ofertaEditIdx] = ofertaPreview;
+    } else {
+      nuevaLista.unshift(ofertaPreview);
+    }
+    await persistirOfertas(nuevaLista, 'Oferta publicada en el carrusel de /precios y Planes.');
+    setOfertaEditIdx(null);
+  };
+
   return (
     <div className="w-full max-w-full overflow-x-hidden pt-20 px-4 sm:px-6 lg:px-7 pb-12 min-h-screen bg-canvas-base text-text-primary">
       <div className="w-full min-w-0 flex flex-col gap-5">
@@ -725,6 +836,7 @@ export default function PlanesYSuscripcion() {
                 {[
                   { id: 'tienda', label: 'Vista Cliente (Planes)', icon: 'storefront' },
                   { id: 'editor', label: 'Crear / Editar + Vista Previa', icon: 'design_services' },
+                  { id: 'ofertas', label: `Ofertas / Banners (${ofertas.length})`, icon: 'campaign' },
                   {
                     id: 'cobros',
                     label: `QR / Pagos (${solicitudes.filter((s) => s.estado === 'pendiente').length})`,
@@ -765,6 +877,24 @@ export default function PlanesYSuscripcion() {
           <div className="p-8 text-center text-xs font-mono text-text-dim">Cargando planes…</div>
         ) : pestana === 'tienda' ? (
           <>
+            {/* Banner carrusel de ofertas activas */}
+            {ofertas.some((o) => o.activa) && <CarruselOfertasPlanes ofertas={ofertas} />}
+
+            {/* Acceso directo a la página pública /precios (para compartir o enlazar desde tu web corporativa) */}
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+              <span className="text-[11px] font-mono text-text-dim">
+                Enlace público para tu web corporativa:{' '}
+                <strong className="text-primary">{window.location.origin}/precios</strong>
+              </span>
+              <Link
+                to="/precios"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              >
+                <span>Ver página pública a pantalla completa</span>
+                <span className="material-symbols-outlined text-[15px]">open_in_new</span>
+              </Link>
+            </div>
+
             {/* Selector Mensual / Anual con descuento */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface-card border border-border-hairline px-4 py-3">
               <div className="text-xs text-text-muted">
@@ -1133,6 +1263,216 @@ export default function PlanesYSuscripcion() {
                 </div>
               </div>
               <TarjetaPlanVisual plan={planPreview} ciclo={cicloTienda} soloVistaPrevia />
+            </div>
+          </div>
+        ) : pestana === 'ofertas' && esSuperadmin ? (
+          <div className="flex flex-col gap-5">
+            {/* Vista previa en vivo a ancho completo del banner que estás diseñando */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  Vista previa en vivo del Banner (así se verá en /precios y en la tienda)
+                </span>
+                <Link
+                  to="/precios"
+                  className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  <span>Abrir /precios</span>
+                  <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                </Link>
+              </div>
+              <TarjetaBannerOferta oferta={ofertaPreview} onAccion={() => undefined} />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+              {/* Formulario de creación / edición de oferta */}
+              <div className="rounded-2xl bg-surface-card border border-border-hairline p-5 flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-bold text-text-primary">
+                    {ofertaEditIdx !== null ? 'Editando oferta' : 'Crear nuevo banner de oferta'}
+                  </h2>
+                  <button
+                    type="button"
+                    disabled={generandoOfertaIa}
+                    onClick={() => void manejarSugerirOfertaIa()}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary/12 border border-primary/30 text-primary text-[11px] font-semibold cursor-pointer disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
+                    <span>{generandoOfertaIa ? 'Generando…' : 'Generar oferta con IA'}</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <input
+                    type="text"
+                    value={ofEtiqueta}
+                    onChange={(e) => setOfEtiqueta(e.target.value)}
+                    placeholder="Ocasión (ej. Black Friday / Lanzamiento)"
+                    className="rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs text-text-primary"
+                  />
+                  <input
+                    type="text"
+                    value={ofDescuento}
+                    onChange={(e) => setOfDescuento(e.target.value)}
+                    placeholder="Badge (ej. 30% DTO)"
+                    className="rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs font-mono text-amber-400"
+                  />
+                </div>
+
+                <input
+                  type="text"
+                  value={ofTitulo}
+                  onChange={(e) => setOfTitulo(e.target.value)}
+                  placeholder="Título llamativo de la oferta"
+                  className="rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs text-text-primary"
+                />
+
+                <textarea
+                  rows={2}
+                  value={ofSubtitulo}
+                  onChange={(e) => setOfSubtitulo(e.target.value)}
+                  placeholder="Subtítulo / detalles de la promoción…"
+                  className="rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs text-text-primary"
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <select
+                    value={ofTema}
+                    onChange={(e) => setOfTema(e.target.value as TemaVisualOferta)}
+                    className="rounded-xl bg-surface-low border border-border-hairline px-2.5 py-2 text-xs text-text-primary"
+                  >
+                    <option value="azul_neon">Azul Neón</option>
+                    <option value="fuego_naranja">Fuego Naranja</option>
+                    <option value="esmeralda_soc">Esmeralda SOC</option>
+                    <option value="purpura_ia">Púrpura IA</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={ofBoton}
+                    onChange={(e) => setOfBoton(e.target.value)}
+                    placeholder="Texto botón"
+                    className="rounded-xl bg-surface-low border border-border-hairline px-2.5 py-2 text-xs text-text-primary"
+                  />
+                  <input
+                    type="datetime-local"
+                    value={ofFechaFin}
+                    onChange={(e) => setOfFechaFin(e.target.value)}
+                    title="Fecha fin para cuenta regresiva"
+                    className="rounded-xl bg-surface-low border border-border-hairline px-2.5 py-2 text-xs font-mono text-text-primary"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-surface-low border border-dashed border-border-hairline">
+                  <label className="text-xs text-text-muted cursor-pointer inline-flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px] text-primary">image</span>
+                    <span>Subir imagen de fondo opcional</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(e) => manejarSubirImagenOferta(e.target.files?.[0])}
+                      className="hidden"
+                    />
+                  </label>
+                  {ofImagen && (
+                    <button
+                      type="button"
+                      onClick={() => setOfImagen('')}
+                      className="text-[11px] text-status-critical hover:underline cursor-pointer"
+                    >
+                      Quitar imagen
+                    </button>
+                  )}
+                </div>
+
+                <label className="inline-flex items-center gap-2 text-xs text-text-primary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={ofActiva}
+                    onChange={(e) => setOfActiva(e.target.checked)}
+                    className="accent-primary"
+                  />
+                  <span>Mostrar oferta activa en el carrusel</span>
+                </label>
+
+                <button
+                  type="button"
+                  disabled={guardandoOfertas}
+                  onClick={() => void manejarGuardarOferta()}
+                  className="w-full py-2.5 rounded-xl bg-primary text-[var(--hs-on-accent)] text-xs font-semibold cursor-pointer disabled:opacity-50"
+                >
+                  {guardandoOfertas
+                    ? 'Guardando…'
+                    : ofertaEditIdx !== null
+                      ? 'Guardar cambios de la oferta'
+                      : 'Publicar oferta en carrusel'}
+                </button>
+              </div>
+
+              {/* Lista de ofertas creadas */}
+              <div className="rounded-2xl bg-surface-card border border-border-hairline p-5 flex flex-col gap-3">
+                <h2 className="text-sm font-bold text-text-primary">
+                  Banners en tu carrusel ({ofertas.length})
+                </h2>
+                {ofertas.length === 0 ? (
+                  <p className="text-xs text-text-dim">Aún no hay banners configurados.</p>
+                ) : (
+                  <div className="divide-y divide-border-hairline">
+                    {ofertas.map((of, i) => (
+                      <div key={of.id} className="py-3 flex items-start justify-between gap-2 text-xs">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-text-primary">{of.titulo}</span>
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                                of.activa
+                                  ? 'bg-primary/15 text-primary'
+                                  : 'bg-surface-low text-text-dim'
+                              }`}
+                            >
+                              {of.activa ? 'ACTIVA' : 'PAUSADA'}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-text-muted mt-0.5 truncate">
+                            {of.etiqueta} • {of.descuentoTexto}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOfertaEditIdx(i);
+                              setOfEtiqueta(of.etiqueta);
+                              setOfTitulo(of.titulo);
+                              setOfSubtitulo(of.subtitulo);
+                              setOfDescuento(of.descuentoTexto);
+                              setOfTema(of.temaVisual);
+                              setOfImagen(of.imagenFondoDataUrl || '');
+                              setOfFechaFin(of.fechaFinIso ? of.fechaFinIso.slice(0, 16) : '');
+                              setOfBoton(of.textoBoton);
+                              setOfActiva(of.activa);
+                            }}
+                            className="px-2 py-1 rounded-lg border border-border-hairline text-[11px] text-primary cursor-pointer"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void persistirOfertas(
+                                ofertas.filter((_, idx) => idx !== i),
+                                'Oferta eliminada del carrusel.',
+                              )
+                            }
+                            className="px-2 py-1 rounded-lg border border-status-critical/30 text-[11px] text-status-critical cursor-pointer"
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ) : (
