@@ -13,6 +13,7 @@ import {
   LoginDTO,
   RecuperarTotpDTO,
   RegistroInvitacionDTO,
+  RegistroPublicoDTO,
   SetupInicialDTO,
   Verificar2FADTO,
 } from '../dto/LoginDTO';
@@ -143,6 +144,44 @@ export class AuthController {
         tokenInvitacion,
         nombreUsuario,
         contrasena,
+        direccionIp,
+      });
+
+      res.cookie(
+        NOMBRE_COOKIE_REFRESH,
+        resultado.tokenRefresh,
+        opcionesCookieRefresh(this.obtenerOpcionesCookie(req), recordarSesionDias),
+      );
+
+      res.status(201).json({
+        requiere2FA: false,
+        usuario: resultado.usuario,
+        tokenAcceso: resultado.tokenAcceso,
+        expiraEn: resultado.expiraEn,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public registrarCuentaPublica = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!this.casoUsoAccesoYUsuarios) {
+        res.status(501).json({ error: { codigo: 'NO_DISPONIBLE', mensaje: 'Registro no disponible' } });
+        return;
+      }
+      const { nombreUsuario, contrasena, whatsappNumero, telegramChatId, recordarSesionDias } =
+        req.body as RegistroPublicoDTO;
+      const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
+      const resultado = await this.casoUsoAccesoYUsuarios.registrarCuentaPublica({
+        nombreUsuario,
+        contrasena,
+        whatsappNumero,
+        telegramChatId,
         direccionIp,
       });
 

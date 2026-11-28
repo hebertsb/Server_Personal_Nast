@@ -246,6 +246,60 @@ export const githubServicio = {
       tokenAcceso,
     ),
 
+  listarEquipo: (
+    proyectoId: string,
+    tokenAcceso: string,
+  ): Promise<{
+    miembros: Array<{
+      id: string;
+      repositorioId: string;
+      usuarioId: string;
+      nombreUsuario: string;
+      rolEquipo: 'colaborador' | 'lectura';
+      telegramChatId: string;
+      whatsappNumero: string;
+      agregadoPor: string;
+      creadoEn: string;
+    }>;
+  }> =>
+    apiCliente.get(
+      `/despliegues/proyectos/${encodeURIComponent(proyectoId)}/equipo`,
+      tokenAcceso,
+    ),
+
+  agregarMiembroEquipo: (
+    proyectoId: string,
+    datos: { nombreUsuario: string; rolEquipo: 'colaborador' | 'lectura' },
+    tokenAcceso: string,
+  ): Promise<{
+    miembro: {
+      id: string;
+      repositorioId: string;
+      usuarioId: string;
+      nombreUsuario: string;
+      rolEquipo: 'colaborador' | 'lectura';
+      telegramChatId: string;
+      whatsappNumero: string;
+      agregadoPor: string;
+      creadoEn: string;
+    };
+  }> =>
+    apiCliente.post(
+      `/despliegues/proyectos/${encodeURIComponent(proyectoId)}/equipo`,
+      datos,
+      tokenAcceso,
+    ),
+
+  quitarMiembroEquipo: (
+    proyectoId: string,
+    usuarioId: string,
+    tokenAcceso: string,
+  ): Promise<{ mensaje: string }> =>
+    apiCliente.delete(
+      `/despliegues/proyectos/${encodeURIComponent(proyectoId)}/equipo/${encodeURIComponent(usuarioId)}`,
+      tokenAcceso,
+    ),
+
   // Fase 3c — Polling, Aprobación manual, Reversión (RF-50) y simulador local de push
   ejecutarPolling: (tokenAcceso: string): Promise<{ revisados: number; disparados: number }> =>
     apiCliente.post<{ revisados: number; disparados: number }>(

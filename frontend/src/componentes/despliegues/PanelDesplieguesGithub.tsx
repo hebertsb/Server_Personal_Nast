@@ -129,11 +129,25 @@ export default function PanelDesplieguesGithub() {
   const [aprobacionAsistente, setAprobacionAsistente] = useState(false);
   const [creandoProyecto, setCreandoProyecto] = useState(false);
 
-  // Estado de panel expandido por proyecto (Variables cifradas o Historial/Logs)
+  // Estado de panel expandido por proyecto (Variables cifradas, Historial/Logs o Equipo)
   const [proyectoSeleccionadoId, setProyectoSeleccionadoId] = useState<string | null>(null);
-  const [vistaDetalle, setVistaDetalle] = useState<'variables' | 'historial'>('variables');
+  const [vistaDetalle, setVistaDetalle] = useState<'variables' | 'historial' | 'equipo'>('variables');
   const [variablesProyecto, setVariablesProyecto] = useState<VariableEntornoItem[]>([]);
   const [historialProyecto, setHistorialProyecto] = useState<DespliegueRegistroItem[]>([]);
+  const [equipoProyecto, setEquipoProyecto] = useState<
+    Array<{
+      id: string;
+      usuarioId: string;
+      nombreUsuario: string;
+      rolEquipo: 'colaborador' | 'lectura';
+      telegramChatId: string;
+      whatsappNumero: string;
+      agregadoPor: string;
+    }>
+  >([]);
+  const [nuevoMiembroUsuario, setNuevoMiembroUsuario] = useState('');
+  const [nuevoMiembroRol, setNuevoMiembroRol] = useState<'colaborador' | 'lectura'>('colaborador');
+  const [guardandoMiembro, setGuardandoMiembro] = useState(false);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [claveVar, setClaveVar] = useState('');
   const [valorVar, setValorVar] = useState('');
@@ -244,13 +258,16 @@ export default function PanelDesplieguesGithub() {
   }, [aviso]);
 
   const cargarDetalleProyecto = useCallback(
-    async (proyectoId: string, vista: 'variables' | 'historial') => {
+    async (proyectoId: string, vista: 'variables' | 'historial' | 'equipo') => {
       if (!tokenAcceso) return;
       setCargandoDetalle(true);
       try {
         if (vista === 'variables') {
           const { variables } = await githubServicio.listarVariables(proyectoId, tokenAcceso);
           setVariablesProyecto(variables);
+        } else if (vista === 'equipo') {
+          const { miembros } = await githubServicio.listarEquipo(proyectoId, tokenAcceso);
+          setEquipoProyecto(miembros);
         } else {
           const { despliegues } = await githubServicio.listarHistorial(proyectoId, tokenAcceso);
           setHistorialProyecto(despliegues);
@@ -265,7 +282,7 @@ export default function PanelDesplieguesGithub() {
     [tokenAcceso],
   );
 
-  const abrirDetalle = (proyectoId: string, vista: 'variables' | 'historial') => {
+  const abrirDetalle = (proyectoId: string, vista: 'variables' | 'historial' | 'equipo') => {
     if (proyectoSeleccionadoId === proyectoId && vistaDetalle === vista) {
       setProyectoSeleccionadoId(null);
       return;
@@ -273,6 +290,38 @@ export default function PanelDesplieguesGithub() {
     setProyectoSeleccionadoId(proyectoId);
     setVistaDetalle(vista);
     void cargarDetalleProyecto(proyectoId, vista);
+  };
+
+  const manejarAgregarMiembro = async (e: FormEvent, proyectoId: string) => {
+    e.preventDefault();
+    if (!tokenAcceso || !nuevoMiembroUsuario.trim()) return;
+    setGuardandoMiembro(true);
+    try {
+      await githubServicio.agregarMiembroEquipo(
+        proyectoId,
+        { nombreUsuario: nuevoMiembroUsuario.trim(), rolEquipo: nuevoMiembroRol },
+        tokenAcceso,
+      );
+      setNuevoMiembroUsuario('');
+      setAviso('Compañero agregado al equipo del proyecto y notificado por Telegram/WhatsApp.');
+      await cargarDetalleProyecto(proyectoId, 'equipo');
+    } catch (err) {
+      setError(err instanceof ErrorApi ? err.message : 'No se pudo agregar al colaborador');
+    } finally {
+      setGuardandoMiembro(false);
+    }
+  };
+
+  const manejarQuitarMiembro = async (proyectoId: string, usuarioId: string, nombre: string) => {
+    if (!tokenAcceso) return;
+    if (!window.confirm(`¿Quitar a "${nombre}" del equipo de este proyecto?`)) return;
+    try {
+      await githubServicio.quitarMiembroEquipo(proyectoId, usuarioId, tokenAcceso);
+      setAviso(`"${nombre}" fue removido del equipo.`);
+      await cargarDetalleProyecto(proyectoId, 'equipo');
+    } catch (err) {
+      setError(err instanceof ErrorApi ? err.message : 'No se pudo quitar al colaborador');
+    }
   };
 
   const manejarConectar = async (e: FormEvent) => {
@@ -1280,6 +1329,19 @@ export default function PanelDesplieguesGithub() {
                         <span>Historial</span>
                       </button>
 
+                      <button
+                        type="button"
+                        onClick={() => abrirDetalle(proy.id, 'equipo')}
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-medium cursor-pointer ${
+                          abierto && vistaDetalle === 'equipo'
+                            ? 'border-primary bg-primary/12 text-primary'
+                            : 'bg-surface-low border-border-hairline text-text-primary'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[15px]">groups</span>
+                        <span>Equipo</span>
+                      </button>
+
                       {(() => {
                         const urlCode = construirUrlCodeServer(proy.nombreProyecto);
                         return urlCode ? (
@@ -1312,7 +1374,106 @@ export default function PanelDesplieguesGithub() {
                   {/* Detalle expandido: Variables de entorno cifradas o Historial */}
                   {abierto && proyectoActivoDetalle && (
                     <div className="mt-1 p-4 rounded-xl bg-surface-low/65 border border-border-hairline flex flex-col gap-3">
-                      {vistaDetalle === 'variables' ? (
+                      {vistaDetalle === 'equipo' ? (
+                        <div className="flex flex-col gap-3">
+                          <div className="text-xs text-text-muted">
+                            <strong className="text-text-primary">
+                              Equipo del proyecto (grupos de estudiantes / colaboradores):
+                            </strong>{' '}
+                            agrega a los integrantes de tu grupo usando su nombre de usuario de
+                            HomeSOC para que puedan ver este proyecto, hacer redeploy y recibir
+                            alertas de tickets en su WhatsApp o Telegram.
+                          </div>
+
+                          {(usuario?.rol === 'superadmin' ||
+                            usuario?.rol === 'administrador' ||
+                            proy.usuarioId === usuario?.id) && (
+                            <form
+                              onSubmit={(e) => void manejarAgregarMiembro(e, proy.id)}
+                              className="flex flex-col sm:flex-row gap-2"
+                            >
+                              <input
+                                type="text"
+                                value={nuevoMiembroUsuario}
+                                onChange={(e) => setNuevoMiembroUsuario(e.target.value)}
+                                placeholder="Usuario del compañero (ej. carlos.dev)"
+                                className="flex-1 rounded-xl bg-surface-card border border-border-hairline px-3 py-1.5 text-xs font-mono text-text-primary"
+                              />
+                              <select
+                                value={nuevoMiembroRol}
+                                onChange={(e) =>
+                                  setNuevoMiembroRol(e.target.value as 'colaborador' | 'lectura')
+                                }
+                                className="rounded-xl bg-surface-card border border-border-hairline px-3 py-1.5 text-xs text-text-primary"
+                              >
+                                <option value="colaborador">Colaborador (Deploy + Vars)</option>
+                                <option value="lectura">Solo lectura</option>
+                              </select>
+                              <button
+                                type="submit"
+                                disabled={guardandoMiembro || !nuevoMiembroUsuario.trim()}
+                                className="px-3.5 py-1.5 rounded-xl bg-primary text-[var(--hs-on-accent)] text-xs font-semibold cursor-pointer disabled:opacity-50"
+                              >
+                                {guardandoMiembro ? 'Agregando…' : 'Agregar al equipo'}
+                              </button>
+                            </form>
+                          )}
+
+                          {cargandoDetalle ? (
+                            <p className="text-xs font-mono text-text-dim">Cargando equipo…</p>
+                          ) : equipoProyecto.length === 0 ? (
+                            <p className="text-xs text-text-dim">
+                              Aún no hay colaboradores agregados. Solo el dueño del proyecto tiene
+                              acceso.
+                            </p>
+                          ) : (
+                            <div className="divide-y divide-border-hairline rounded-xl bg-surface-card border border-border-hairline">
+                              {equipoProyecto.map((m) => (
+                                <div
+                                  key={m.id}
+                                  className="px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs"
+                                >
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-mono font-bold text-text-primary">
+                                      {m.nombreUsuario}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-mono uppercase">
+                                      {m.rolEquipo}
+                                    </span>
+                                    {m.whatsappNumero && (
+                                      <span className="text-[11px] font-mono text-text-muted">
+                                        WA: +{m.whatsappNumero}
+                                      </span>
+                                    )}
+                                    {m.telegramChatId && (
+                                      <span className="text-[11px] font-mono text-text-muted">
+                                        TG: {m.telegramChatId}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {(usuario?.rol === 'superadmin' ||
+                                    usuario?.rol === 'administrador' ||
+                                    proy.usuarioId === usuario?.id) && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void manejarQuitarMiembro(
+                                          proy.id,
+                                          m.usuarioId,
+                                          m.nombreUsuario,
+                                        )
+                                      }
+                                      className="px-2 py-1 rounded-lg text-[11px] text-status-critical hover:bg-error-container cursor-pointer"
+                                    >
+                                      Quitar
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : vistaDetalle === 'variables' ? (
                         <>
                           <div className="text-xs text-text-muted">
                             <strong className="text-text-primary">

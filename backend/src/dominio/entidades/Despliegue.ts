@@ -12,6 +12,19 @@ export type EstadoEjecucionDespliegue =
   | 'fallido'
   | 'pendiente_aprobacion'
   | 'revertido';
+export type RolEquipoProyecto = 'colaborador' | 'lectura';
+
+export interface MiembroEquipoProyecto {
+  id: string;
+  repositorioId: string;
+  usuarioId: string;
+  nombreUsuario: string;
+  rolEquipo: RolEquipoProyecto;
+  telegramChatId: string;
+  whatsappNumero: string;
+  agregadoPor: string;
+  creadoEn: string;
+}
 
 export interface ProyectoConectado {
   id: string;
@@ -30,6 +43,7 @@ export interface ProyectoConectado {
   ultimoCommitSha: string | null;
   estadoActual: EstadoProyectoDespliegue;
   totalVariables: number;
+  rolEnProyecto?: 'dueno' | RolEquipoProyecto;
   creadoEn: string;
   actualizadoEn: string;
 }

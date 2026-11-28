@@ -4,9 +4,11 @@ import {
   EscaneoSeguridadEntrada,
   EstadoEjecucionDespliegue,
   EstadoProyectoDespliegue,
+  MiembroEquipoProyecto,
   ModoActualizacionRepo,
   OrigenDespliegue,
   ProyectoConectado,
+  RolEquipoProyecto,
   TipoProyectoDespliegue,
   VariableEntornoPersistida,
 } from '../entidades/Despliegue';
@@ -78,4 +80,14 @@ export interface RepositorioDespliegues {
   ): Promise<DespliegueRegistro | null>;
   listarDespliegues(repositorioId: string, limite?: number): Promise<DespliegueRegistro[]>;
   listarEscaneosPorDespliegue(despliegueId: string): Promise<EscaneoSeguridadDespliegue[]>;
+
+  listarMiembrosEquipo?(repositorioId: string): Promise<MiembroEquipoProyecto[]>;
+  listarProyectosCompartidosPorUsuario?(usuarioId: string): Promise<Record<string, RolEquipoProyecto>>;
+  agregarMiembroEquipo?(
+    repositorioId: string,
+    usuarioId: string,
+    rolEquipo: RolEquipoProyecto,
+    agregadoPor: string,
+  ): Promise<MiembroEquipoProyecto>;
+  quitarMiembroEquipo?(repositorioId: string, usuarioId: string): Promise<boolean>;
 }

@@ -175,6 +175,7 @@ async function iniciarServidor(): Promise<void> {
     servicioCifrado,
     servicioTotp,
     servicioTokens,
+    notificarEvento,
   );
   const casoUsoBiometria = new GestionarBiometriaWebAuthn(
     repositorioBiometria,

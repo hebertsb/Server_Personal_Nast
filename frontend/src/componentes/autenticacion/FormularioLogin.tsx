@@ -171,6 +171,9 @@ export default function FormularioLogin() {
   const [confirmarContrasena, setConfirmarContrasena] = useState('');
   const [mostrarNueva, setMostrarNueva] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
+  const [whatsappRegistro, setWhatsappRegistro] = useState('591');
+  const [telegramRegistro, setTelegramRegistro] = useState('');
+  const [conTokenInvitacion, setConTokenInvitacion] = useState(false);
 
   // Campos de Recuperación por 2FA (TOTP)
   const [usuarioRecuperar, setUsuarioRecuperar] = useState('');
@@ -205,7 +208,10 @@ export default function FormularioLogin() {
         if (estado.requiereSetup) {
           setModo('setup');
         } else if (tokenUrl || modoUrl === 'registro') {
-          if (tokenUrl) setTokenInvitacion(tokenUrl);
+          if (tokenUrl) {
+            setTokenInvitacion(tokenUrl);
+            setConTokenInvitacion(true);
+          }
           setModo('registro');
         }
       } catch {
@@ -408,23 +414,35 @@ export default function FormularioLogin() {
       return;
     }
 
-    setTextoCarga('VALIDANDO TOKEN TEMPORAL SHA-256...');
+    setTextoCarga(
+      conTokenInvitacion
+        ? 'VALIDANDO TOKEN TEMPORAL SHA-256...'
+        : 'CREANDO CUENTA Y VINCULANDO ALERTAS...',
+    );
     setCargando(true);
     try {
-      const sesion = await autenticacionServicio.registrarConInvitacion({
-        tokenInvitacion,
-        nombreUsuario: usuarioNuevo,
-        contrasena: contrasenaNueva,
-        recordarSesionDias: diasEfectivos,
-      });
+      const sesion = conTokenInvitacion
+        ? await autenticacionServicio.registrarConInvitacion({
+            tokenInvitacion,
+            nombreUsuario: usuarioNuevo,
+            contrasena: contrasenaNueva,
+            recordarSesionDias: diasEfectivos,
+          })
+        : await autenticacionServicio.registrarCuentaPublica({
+            nombreUsuario: usuarioNuevo,
+            contrasena: contrasenaNueva,
+            whatsappNumero: whatsappRegistro.replace(/[^0-9]/g, ''),
+            telegramChatId: telegramRegistro.trim(),
+            recordarSesionDias: diasEfectivos,
+          });
       guardarUsuarioSiRecuerda(usuarioNuevo);
       establecerSesionDirecta(sesion);
       setCompuertaCerrada(true);
       setMensajeCompuerta('CUENTA ACTIVADA — ACCESO CONCEDIDO');
-      window.setTimeout(() => navigate('/', { replace: true }), 450);
+      window.setTimeout(() => navigate(conTokenInvitacion ? '/' : '/planes', { replace: true }), 450);
     } catch (error) {
       setMensajeError(
-        error instanceof ErrorApi ? error.message : 'No se pudo registrar con esa invitación',
+        error instanceof ErrorApi ? error.message : 'No se pudo completar el registro',
       );
     } finally {
       setCargando(false);
@@ -979,41 +997,49 @@ export default function FormularioLogin() {
                 </form>
               )}
 
-              {/* MODO 2: REGISTRO CON TOKEN DE INVITACIÓN TEMPORAL */}
+              {/* MODO 2: CREAR CUENTA (AUTO-REGISTRO CON WHATSAPP/TELEGRAM O TOKEN DE INVITACIÓN) */}
               {modo === 'registro' && (
                 <form onSubmit={manejarRegistroInvitacion} className="flex flex-col gap-3.5">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <div>
                       <h2 className="text-lg font-semibold text-text-primary">
-                        Registro con Invitación
+                        {conTokenInvitacion ? 'Registro con Invitación' : 'Crear Cuenta en HomeSOC'}
                       </h2>
                       <p className="text-xs text-text-dim mt-0.5">
-                        Requiere token temporal emitido por el Superadmin
+                        {conTokenInvitacion
+                          ? 'Requiere token temporal emitido por el Superadmin'
+                          : 'Regístrate para adquirir un plan o unirte al equipo de un proyecto'}
                       </p>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-mono border border-primary/25">
-                      1 USO
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setConTokenInvitacion((p) => !p)}
+                      className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-mono border border-primary/25 cursor-pointer shrink-0"
+                    >
+                      {conTokenInvitacion ? 'Sin código' : 'Tengo código'}
+                    </button>
                   </div>
 
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-text-muted">
-                      Token de invitación temporal
-                    </label>
-                    <div className="relative">
-                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary text-[18px]">
-                        vpn_key
-                      </span>
-                      <input
-                        type="text"
-                        value={tokenInvitacion}
-                        onChange={(e) => setTokenInvitacion(e.target.value)}
-                        placeholder="hs_inv_..."
-                        className="w-full font-mono bg-surface-low border border-border-hairline rounded-xl py-2.5 pl-10 pr-3 text-text-primary text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                        required
-                      />
+                  {conTokenInvitacion && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-text-muted">
+                        Token de invitación temporal
+                      </label>
+                      <div className="relative">
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary text-[18px]">
+                          vpn_key
+                        </span>
+                        <input
+                          type="text"
+                          value={tokenInvitacion}
+                          onChange={(e) => setTokenInvitacion(e.target.value)}
+                          placeholder="hs_inv_..."
+                          className="w-full font-mono bg-surface-low border border-border-hairline rounded-xl py-2.5 pl-10 pr-3 text-text-primary text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          required
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-medium text-text-muted">Nombre de usuario</label>
@@ -1022,11 +1048,40 @@ export default function FormularioLogin() {
                       autoComplete="username"
                       value={usuarioNuevo}
                       onChange={(e) => setUsuarioNuevo(e.target.value)}
-                      placeholder="colaborador.dev"
+                      placeholder="tu.usuario"
                       className="w-full bg-surface-low border border-border-hairline rounded-xl py-2.5 px-3.5 text-text-primary text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                       required
                     />
                   </div>
+
+                  {!conTokenInvitacion && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-text-muted">
+                          WhatsApp (con código país)
+                        </label>
+                        <input
+                          type="text"
+                          value={whatsappRegistro}
+                          onChange={(e) => setWhatsappRegistro(e.target.value)}
+                          placeholder="59173655782"
+                          className="w-full font-mono bg-surface-low border border-border-hairline rounded-xl py-2.5 px-3 text-text-primary text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-text-muted">
+                          Telegram Chat ID (opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={telegramRegistro}
+                          onChange={(e) => setTelegramRegistro(e.target.value)}
+                          placeholder="Ej. 1463499995"
+                          className="w-full font-mono bg-surface-low border border-border-hairline rounded-xl py-2.5 px-3 text-text-primary text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1">

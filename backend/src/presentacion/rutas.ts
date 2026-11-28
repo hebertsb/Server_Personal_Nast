@@ -14,6 +14,7 @@ import { ContenedoresController } from './controladores/ContenedoresController';
 import {
   DesplieguesController,
   esquemaActualizarProyecto,
+  esquemaAgregarMiembroEquipo,
   esquemaCrearProyecto,
   esquemaDetectarProyecto,
   esquemaGuardarVariable,
@@ -60,6 +61,7 @@ import {
   esquemaLogin,
   esquemaRecuperarTotp,
   esquemaRegistroInvitacion,
+  esquemaRegistroPublico,
   esquemaSetupInicial,
   esquemaVerificar2FA,
 } from './dto/LoginDTO';
@@ -170,6 +172,12 @@ export function crearRutas(deps: DependenciasRutas): Router {
     '/auth/2fa/dispositivos/:id',
     deps.middlewareAutenticacion,
     deps.authController.revocarDispositivo2FA,
+  );
+  routerApiV1.post(
+    '/auth/registro-publico',
+    deps.limitadorLogin,
+    validarCuerpo(esquemaRegistroPublico),
+    deps.authController.registrarCuentaPublica,
   );
   routerApiV1.post('/auth/refresh', deps.authController.renovarSesion);
   routerApiV1.post('/auth/logout', deps.authController.cerrarSesion);
@@ -426,6 +434,22 @@ export function crearRutas(deps: DependenciasRutas): Router {
     '/despliegues/proyectos/:id/variables/:varId',
     deps.middlewareAutenticacion,
     deps.desplieguesController.eliminarVariable,
+  );
+  routerApiV1.get(
+    '/despliegues/proyectos/:id/equipo',
+    deps.middlewareAutenticacion,
+    deps.desplieguesController.listarEquipo,
+  );
+  routerApiV1.post(
+    '/despliegues/proyectos/:id/equipo',
+    deps.middlewareAutenticacion,
+    validarCuerpo(esquemaAgregarMiembroEquipo),
+    deps.desplieguesController.agregarMiembroEquipo,
+  );
+  routerApiV1.delete(
+    '/despliegues/proyectos/:id/equipo/:usuarioId',
+    deps.middlewareAutenticacion,
+    deps.desplieguesController.quitarMiembroEquipo,
   );
 
   // Fase 3c: Webhook HMAC público, Polling, Gate de seguridad, Aprobación y Rollback manual

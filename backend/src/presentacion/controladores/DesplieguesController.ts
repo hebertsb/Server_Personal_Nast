@@ -100,6 +100,11 @@ export const esquemaGuardarVariable = z.object({
     .max(4096),
 });
 
+export const esquemaAgregarMiembroEquipo = z.object({
+  nombreUsuario: z.string({ error: 'Ingresa el nombre de usuario' }).trim().min(3).max(60),
+  rolEquipo: z.enum(['colaborador', 'lectura']).default('colaborador'),
+});
+
 const esquemaUuid = z.string().uuid('Identificador inválido');
 
 export class DesplieguesController {
@@ -486,6 +491,64 @@ export class DesplieguesController {
         simularFalloHealthCheck: escenario === 'fallo_healthcheck',
       });
       res.status(201).json({ despliegue });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public listarEquipo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const ctx = this.contexto(req);
+      if (!ctx) return this.sinSesion(res);
+      const id = esquemaUuid.safeParse(req.params.id);
+      if (!id.success) {
+        res.status(400).json({ error: { codigo: 'VALIDACION_FALLIDA', mensaje: 'ID inválido' } });
+        return;
+      }
+      const miembros = await this.casoUso.listarEquipoProyecto(id.data, ctx);
+      res.status(200).json({ miembros });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public agregarMiembroEquipo = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const ctx = this.contexto(req);
+      if (!ctx) return this.sinSesion(res);
+      const id = esquemaUuid.safeParse(req.params.id);
+      if (!id.success) {
+        res.status(400).json({ error: { codigo: 'VALIDACION_FALLIDA', mensaje: 'ID inválido' } });
+        return;
+      }
+      const { nombreUsuario, rolEquipo } = req.body as z.infer<typeof esquemaAgregarMiembroEquipo>;
+      const miembro = await this.casoUso.agregarMiembroEquipo(id.data, nombreUsuario, rolEquipo, ctx);
+      res.status(201).json({ miembro });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public quitarMiembroEquipo = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const ctx = this.contexto(req);
+      if (!ctx) return this.sinSesion(res);
+      const id = esquemaUuid.safeParse(req.params.id);
+      const usuarioId = esquemaUuid.safeParse(req.params.usuarioId);
+      if (!id.success || !usuarioId.success) {
+        res.status(400).json({ error: { codigo: 'VALIDACION_FALLIDA', mensaje: 'ID inválido' } });
+        return;
+      }
+      await this.casoUso.quitarMiembroEquipo(id.data, usuarioId.data, ctx);
+      res.status(200).json({ mensaje: 'Colaborador removido del equipo' });
     } catch (error) {
       next(error);
     }

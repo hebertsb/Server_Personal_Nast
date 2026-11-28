@@ -1,9 +1,11 @@
 import {
   DespliegueRegistro,
+  MiembroEquipoProyecto,
   ModoActualizacionRepo,
   OrigenDespliegue,
   ProyectoConectado,
   ResultadoDeteccionProyecto,
+  RolEquipoProyecto,
   TipoProyectoDespliegue,
   VariableEntornoVista,
 } from '../../dominio/entidades/Despliegue';
@@ -202,10 +204,18 @@ export class GestionarProyectosDespliegue {
   public async listarProyectos(ctx?: ContextoDespliegue): Promise<ProyectoConectado[]> {
     const todos = await this.repoDespliegues.listarProyectos();
     if (!ctx || ctx.rol === 'superadmin' || ctx.rol === 'administrador') {
-      return todos;
+      return todos.map((p) => ({ ...p, rolEnProyecto: 'dueno' as const }));
     }
-    // Aislamiento Multi-Tenant: clientes/colaboradores solo ven sus propios proyectos
-    return todos.filter((p) => p.usuarioId === ctx.usuarioId);
+    const compartidos = this.repoDespliegues.listarProyectosCompartidosPorUsuario
+      ? await this.repoDespliegues.listarProyectosCompartidosPorUsuario(ctx.usuarioId)
+      : {};
+    // Aislamiento Multi-Tenant: ve sus propios proyectos y aquellos donde es colaborador del equipo
+    return todos
+      .filter((p) => p.usuarioId === ctx.usuarioId || Boolean(compartidos[p.id]))
+      .map((p) => ({
+        ...p,
+        rolEnProyecto: p.usuarioId === ctx.usuarioId ? 'dueno' : compartidos[p.id],
+      }));
   }
 
   public async conectarProyecto(
@@ -329,11 +339,129 @@ export class GestionarProyectosDespliegue {
     if (!proyecto) {
       throw new ErrorProyectoNoEncontrado(proyectoId);
     }
+    if (
+      ctx.rol !== 'superadmin' &&
+      ctx.rol !== 'administrador' &&
+      proyecto.usuarioId !== ctx.usuarioId
+    ) {
+      throw new ErrorGithubPermisos();
+    }
     await this.repoDespliegues.eliminarProyecto(proyectoId);
     await this.auditoria.registrar({
       usuarioId: ctx.usuarioId,
       accion: 'proyecto_eliminar',
       recurso: proyecto.nombreProyecto,
+      origen: 'web',
+      direccionIp: ctx.direccionIp,
+    });
+  }
+
+  public async listarEquipoProyecto(
+    proyectoId: string,
+    ctx: ContextoDespliegue,
+  ): Promise<MiembroEquipoProyecto[]> {
+    const proyecto = await this.repoDespliegues.obtenerProyectoPorId(proyectoId);
+    if (!proyecto) throw new ErrorProyectoNoEncontrado(proyectoId);
+
+    const esAdmin = ctx.rol === 'superadmin' || ctx.rol === 'administrador';
+    const miembros = this.repoDespliegues.listarMiembrosEquipo
+      ? await this.repoDespliegues.listarMiembrosEquipo(proyectoId)
+      : [];
+    const esMiembro = miembros.some((m) => m.usuarioId === ctx.usuarioId);
+    if (!esAdmin && proyecto.usuarioId !== ctx.usuarioId && !esMiembro) {
+      throw new ErrorGithubPermisos();
+    }
+    return miembros;
+  }
+
+  public async agregarMiembroEquipo(
+    proyectoId: string,
+    nombreUsuarioInvitado: string,
+    rolEquipo: RolEquipoProyecto,
+    ctx: ContextoDespliegue,
+  ): Promise<MiembroEquipoProyecto> {
+    if (!this.repoDespliegues.agregarMiembroEquipo || !this.repoUsuarios) {
+      throw new ErrorTipoProyectoNoSoportado('El módulo de equipos no está disponible');
+    }
+    const proyecto = await this.repoDespliegues.obtenerProyectoPorId(proyectoId);
+    if (!proyecto) throw new ErrorProyectoNoEncontrado(proyectoId);
+
+    const esAdmin = ctx.rol === 'superadmin' || ctx.rol === 'administrador';
+    if (!esAdmin && proyecto.usuarioId !== ctx.usuarioId) {
+      throw new ErrorGithubPermisos();
+    }
+
+    const objetivo = await this.repoUsuarios.buscarPorNombreUsuario(nombreUsuarioInvitado.trim());
+    if (!objetivo) {
+      throw new ErrorTipoProyectoNoSoportado(
+        `No existe ningún usuario registrado como "${nombreUsuarioInvitado.trim()}". Pídele que cree su cuenta primero.`,
+      );
+    }
+    if (objetivo.id === proyecto.usuarioId) {
+      throw new ErrorTipoProyectoNoSoportado('El dueño del proyecto ya tiene acceso total.');
+    }
+
+    const actuales = this.repoDespliegues.listarMiembrosEquipo
+      ? await this.repoDespliegues.listarMiembrosEquipo(proyectoId)
+      : [];
+    const yaExiste = actuales.some((m) => m.usuarioId === objetivo.id);
+    const limiteColaboradores = esAdmin ? 20 : 8;
+    if (!yaExiste && actuales.length >= limiteColaboradores) {
+      throw new ErrorTipoProyectoNoSoportado(
+        `Alcanzaste el límite de ${limiteColaboradores} colaboradores en este proyecto.`,
+      );
+    }
+
+    const miembro = await this.repoDespliegues.agregarMiembroEquipo(
+      proyectoId,
+      objetivo.id,
+      rolEquipo,
+      ctx.nombreUsuario,
+    );
+
+    await this.auditoria.registrar({
+      usuarioId: ctx.usuarioId,
+      accion: 'proyecto_equipo_agregar',
+      recurso: `${proyecto.nombreProyecto}:${objetivo.nombreUsuario}`,
+      origen: 'web',
+      direccionIp: ctx.direccionIp,
+      detalles: { rolEquipo },
+    });
+
+    await this.notificarEvento?.emitir({
+      tipoEvento: 'portafolio_actualizacion',
+      mensaje: `👥 Te agregaron al equipo del proyecto "${proyecto.nombreProyecto}" en HomeSOC\nRol: ${rolEquipo.toUpperCase()}\nInvitado por: ${ctx.nombreUsuario}\nYa puedes ver el proyecto${
+        rolEquipo === 'colaborador' ? ', hacer redeploy y gestionar tickets del grupo.' : '.'
+      }`,
+      destinatario: {
+        nombre: objetivo.nombreUsuario,
+        telegramChatId: objetivo.telegramChatId || undefined,
+        whatsappNumero: objetivo.whatsappNumero || undefined,
+      },
+    });
+
+    return miembro;
+  }
+
+  public async quitarMiembroEquipo(
+    proyectoId: string,
+    usuarioIdMiembro: string,
+    ctx: ContextoDespliegue,
+  ): Promise<void> {
+    if (!this.repoDespliegues.quitarMiembroEquipo) return;
+    const proyecto = await this.repoDespliegues.obtenerProyectoPorId(proyectoId);
+    if (!proyecto) throw new ErrorProyectoNoEncontrado(proyectoId);
+
+    const esAdmin = ctx.rol === 'superadmin' || ctx.rol === 'administrador';
+    if (!esAdmin && proyecto.usuarioId !== ctx.usuarioId) {
+      throw new ErrorGithubPermisos();
+    }
+
+    await this.repoDespliegues.quitarMiembroEquipo(proyectoId, usuarioIdMiembro);
+    await this.auditoria.registrar({
+      usuarioId: ctx.usuarioId,
+      accion: 'proyecto_equipo_quitar',
+      recurso: `${proyecto.nombreProyecto}:${usuarioIdMiembro}`,
       origen: 'web',
       direccionIp: ctx.direccionIp,
     });

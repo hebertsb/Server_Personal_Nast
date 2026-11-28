@@ -241,4 +241,25 @@ describe('GestionarAccesoYUsuarios', () => {
       }),
     ).rejects.toBeInstanceOf(ErrorPermisoDenegado);
   });
+
+  it('permite auto-registro público de estudiante con WhatsApp y Telegram', async () => {
+    const { casoUso, repoUsuarios } = crearMocks();
+    repoUsuarios.actualizarContacto = vi.fn(async () => undefined);
+
+    const res = await casoUso.registrarCuentaPublica({
+      nombreUsuario: 'estudiante.uagrm',
+      contrasena: 'ClaveSegura@2026',
+      whatsappNumero: '+591 73655782',
+      telegramChatId: '1463499995',
+      direccionIp: '192.168.1.50',
+    });
+
+    expect(res.usuario.nombreUsuario).toBe('estudiante.uagrm');
+    expect(res.usuario.rol).toBe('colaborador');
+    expect(res.usuario.permisosModulos).toEqual(['servicios', 'recursos']);
+    expect(repoUsuarios.actualizarContacto).toHaveBeenCalledWith(res.usuario.id, {
+      whatsappNumero: '59173655782',
+      telegramChatId: '1463499995',
+    });
+  });
 });

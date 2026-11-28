@@ -97,6 +97,15 @@ export const autenticacionServicio = {
   }): Promise<RespuestaSesionActiva> =>
     apiCliente.post<RespuestaSesionActiva>('/auth/registrar-con-invitacion', datos),
 
+  registrarCuentaPublica: (datos: {
+    nombreUsuario: string;
+    contrasena: string;
+    whatsappNumero?: string;
+    telegramChatId?: string;
+    recordarSesionDias?: number;
+  }): Promise<RespuestaSesionActiva> =>
+    apiCliente.post<RespuestaSesionActiva>('/auth/registro-publico', datos),
+
   recuperarConTotp: (datos: {
     nombreUsuario: string;
     codigo: string;

@@ -23,6 +23,7 @@ import { ServicioCifrado } from '../../dominio/interfaces/ServicioCifrado';
 import { ServicioHashContrasena } from '../../dominio/interfaces/ServicioHashContrasena';
 import { ServicioTokens } from '../../dominio/interfaces/ServicioTokens';
 import { ServicioTotp } from '../../dominio/interfaces/ServicioTotp';
+import { NotificarEvento } from '../notificaciones/NotificarEvento';
 
 function hashTokenSha256(tokenCrudo: string): string {
   return crypto.createHash('sha256').update(tokenCrudo.trim(), 'utf8').digest('hex');
@@ -54,6 +55,7 @@ export class GestionarAccesoYUsuarios {
     private readonly servicioCifrado: ServicioCifrado,
     private readonly servicioTotp: ServicioTotp,
     private readonly servicioTokens: ServicioTokens,
+    private readonly notificarEvento?: NotificarEvento,
   ) {}
 
   /** Indica si el sistema aún no tiene usuarios y requiere configuración inicial de Superadmin. */
@@ -107,6 +109,86 @@ export class GestionarAccesoYUsuarios {
 
     return {
       usuario: usuario.aPerfilPublico(),
+      tokenAcceso: tokens.tokenAcceso,
+      tokenRefresh: tokens.tokenRefresh,
+      expiraEn: tokens.expiraEn,
+    };
+  }
+
+  /**
+   * Auto-registro público para clientes/estudiantes con vinculación de WhatsApp y Telegram.
+   * Crea la cuenta con acceso acotado a sus propios proyectos/equipos y Planes y Suscripción.
+   */
+  public async registrarCuentaPublica(entrada: {
+    nombreUsuario: string;
+    contrasena: string;
+    whatsappNumero?: string;
+    telegramChatId?: string;
+    direccionIp: string;
+  }): Promise<ResultadoSesionGenerada> {
+    const nombreNormalizado = entrada.nombreUsuario.trim();
+    const existente = await this.repositorioUsuarios.buscarPorNombreUsuario(nombreNormalizado);
+    if (existente) {
+      throw new ErrorUsuarioYaExiste();
+    }
+
+    const hashContrasena = await this.servicioHash.generarHash(entrada.contrasena);
+    const usuario = await this.repositorioUsuarios.crear({
+      nombreUsuario: nombreNormalizado,
+      hashContrasena,
+      rol: 'colaborador',
+      permisosModulos: ['servicios', 'recursos'],
+    });
+
+    const whatsappLimpio = (entrada.whatsappNumero ?? '').replace(/[^0-9]/g, '');
+    const telegramLimpio = (entrada.telegramChatId ?? '').trim();
+
+    if ((whatsappLimpio || telegramLimpio) && this.repositorioUsuarios.actualizarContacto) {
+      await this.repositorioUsuarios.actualizarContacto(usuario.id, {
+        whatsappNumero: whatsappLimpio,
+        telegramChatId: telegramLimpio,
+      });
+    }
+
+    if (this.repositorioUsuarios.actualizarAcceso) {
+      await this.repositorioUsuarios.actualizarAcceso(usuario.id, entrada.direccionIp);
+    }
+
+    await this.repositorioAuditoria.registrar({
+      usuarioId: usuario.id,
+      accion: 'registro_publico_cliente',
+      recurso: `usuario:${usuario.nombreUsuario}`,
+      origen: 'web',
+      direccionIp: entrada.direccionIp,
+      detalles: {
+        tieneWhatsapp: Boolean(whatsappLimpio),
+        tieneTelegram: Boolean(telegramLimpio),
+      },
+    });
+
+    await this.notificarEvento?.emitir({
+      tipoEvento: 'portafolio_actualizacion',
+      mensaje: `🎉 Nuevo estudiante/cliente registrado en HomeSOC\nUsuario: ${usuario.nombreUsuario}${
+        whatsappLimpio ? `\nWhatsApp: +${whatsappLimpio}` : ''
+      }${telegramLimpio ? `\nTelegram ID: ${telegramLimpio}` : ''}\nYa puede elegir su plan o unirse al equipo de un proyecto.`,
+      destinatario: {
+        nombre: usuario.nombreUsuario,
+        telegramChatId: telegramLimpio || undefined,
+        whatsappNumero: whatsappLimpio || undefined,
+      },
+    });
+
+    const usuarioFinal = (await this.repositorioUsuarios.buscarPorId(usuario.id)) ?? usuario;
+    const tokens = this.servicioTokens.generarParTokens({
+      id: usuarioFinal.id,
+      nombreUsuario: usuarioFinal.nombreUsuario,
+      rol: usuarioFinal.rol,
+      permisosModulos: usuarioFinal.permisosModulos,
+      versionSesion: usuarioFinal.versionSesion,
+    });
+
+    return {
+      usuario: usuarioFinal.aPerfilPublico(),
       tokenAcceso: tokens.tokenAcceso,
       tokenRefresh: tokens.tokenRefresh,
       expiraEn: tokens.expiraEn,

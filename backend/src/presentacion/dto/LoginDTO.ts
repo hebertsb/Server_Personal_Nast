@@ -58,6 +58,26 @@ export const esquemaRegistroInvitacion = z.object({
   recordarSesionDias: esquemaRecordarDias,
 });
 
+export const esquemaRegistroPublico = z.object({
+  nombreUsuario: esquemaNombreUsuarioNuevo,
+  contrasena: esquemaContrasenaFuerte,
+  whatsappNumero: z
+    .string()
+    .trim()
+    .max(30, 'Número de WhatsApp demasiado largo')
+    .regex(/^[0-9+\s-]*$/, 'Usa solo números (ej. 59173655782)')
+    .optional()
+    .default(''),
+  telegramChatId: z
+    .string()
+    .trim()
+    .max(40, 'Chat ID de Telegram demasiado largo')
+    .regex(/^[0-9-]*$/, 'El Chat ID de Telegram debe ser numérico')
+    .optional()
+    .default(''),
+  recordarSesionDias: esquemaRecordarDias,
+});
+
 export const esquemaRecuperarTotp = z.object({
   nombreUsuario: z
     .string({ error: 'El nombre de usuario es obligatorio' })
@@ -111,6 +131,7 @@ export const esquemaParametroUuid = z.object({
 export type LoginDTO = z.infer<typeof esquemaLogin>;
 export type SetupInicialDTO = z.infer<typeof esquemaSetupInicial>;
 export type RegistroInvitacionDTO = z.infer<typeof esquemaRegistroInvitacion>;
+export type RegistroPublicoDTO = z.infer<typeof esquemaRegistroPublico>;
 export type RecuperarTotpDTO = z.infer<typeof esquemaRecuperarTotp>;
 export type Verificar2FADTO = z.infer<typeof esquemaVerificar2FA>;
 export type Confirmar2FADTO = z.infer<typeof esquemaConfirmar2FA>;

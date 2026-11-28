@@ -6,9 +6,11 @@ import {
   EstadoEscaneoSeguridad,
   EstadoEjecucionDespliegue,
   EstadoProyectoDespliegue,
+  MiembroEquipoProyecto,
   ModoActualizacionRepo,
   OrigenDespliegue,
   ProyectoConectado,
+  RolEquipoProyecto,
   TipoEscaneoSeguridad,
   TipoProyectoDespliegue,
   VariableEntornoPersistida,
@@ -414,5 +416,88 @@ export class RepositorioDesplieguesPostgres implements RepositorioDespliegues {
         return mapearDespliegue(fila, escaneos);
       }),
     );
+  }
+
+  public async listarMiembrosEquipo(repositorioId: string): Promise<MiembroEquipoProyecto[]> {
+    const res = await this.pool.query<{
+      id: string;
+      repositorio_id: string;
+      usuario_id: string;
+      nombre_usuario: string;
+      rol_equipo: RolEquipoProyecto;
+      telegram_chat_id: string | null;
+      whatsapp_numero: string | null;
+      agregado_por: string;
+      creado_en: Date | string;
+    }>(
+      `SELECT m.id, m.repositorio_id, m.usuario_id, u.nombre_usuario,
+              m.rol_equipo, u.telegram_chat_id, u.whatsapp_numero,
+              m.agregado_por, m.creado_en
+       FROM equipo_proyecto_miembros m
+       INNER JOIN usuarios u ON u.id = m.usuario_id
+       WHERE m.repositorio_id = $1
+       ORDER BY m.creado_en ASC`,
+      [repositorioId],
+    );
+    return res.rows.map((f) => ({
+      id: f.id,
+      repositorioId: f.repositorio_id,
+      usuarioId: f.usuario_id,
+      nombreUsuario: f.nombre_usuario,
+      rolEquipo: f.rol_equipo,
+      telegramChatId: f.telegram_chat_id ?? '',
+      whatsappNumero: f.whatsapp_numero ?? '',
+      agregadoPor: f.agregado_por,
+      creadoEn: f.creado_en instanceof Date ? f.creado_en.toISOString() : new Date(f.creado_en).toISOString(),
+    }));
+  }
+
+  public async listarProyectosCompartidosPorUsuario(
+    usuarioId: string,
+  ): Promise<Record<string, RolEquipoProyecto>> {
+    const res = await this.pool.query<{
+      repositorio_id: string;
+      rol_equipo: RolEquipoProyecto;
+    }>(
+      `SELECT repositorio_id, rol_equipo
+       FROM equipo_proyecto_miembros
+       WHERE usuario_id = $1`,
+      [usuarioId],
+    );
+    const mapa: Record<string, RolEquipoProyecto> = {};
+    for (const f of res.rows) {
+      mapa[f.repositorio_id] = f.rol_equipo;
+    }
+    return mapa;
+  }
+
+  public async agregarMiembroEquipo(
+    repositorioId: string,
+    usuarioId: string,
+    rolEquipo: RolEquipoProyecto,
+    agregadoPor: string,
+  ): Promise<MiembroEquipoProyecto> {
+    await this.pool.query(
+      `INSERT INTO equipo_proyecto_miembros (repositorio_id, usuario_id, rol_equipo, agregado_por)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (repositorio_id, usuario_id) DO UPDATE SET
+         rol_equipo = EXCLUDED.rol_equipo,
+         agregado_por = EXCLUDED.agregado_por`,
+      [repositorioId, usuarioId, rolEquipo, agregadoPor],
+    );
+    const miembros = await this.listarMiembrosEquipo(repositorioId);
+    const encontrado = miembros.find((m) => m.usuarioId === usuarioId);
+    if (!encontrado) {
+      throw new Error('No se pudo registrar el colaborador en el equipo');
+    }
+    return encontrado;
+  }
+
+  public async quitarMiembroEquipo(repositorioId: string, usuarioId: string): Promise<boolean> {
+    const res = await this.pool.query(
+      `DELETE FROM equipo_proyecto_miembros WHERE repositorio_id = $1 AND usuario_id = $2`,
+      [repositorioId, usuarioId],
+    );
+    return (res.rowCount ?? 0) > 0;
   }
 }
