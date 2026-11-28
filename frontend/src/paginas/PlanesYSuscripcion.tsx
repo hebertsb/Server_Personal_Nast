@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback, useEffect, useState } from 'react';
+import { ChangeEvent, DragEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { usarAutenticacion } from '../contexto/ContextoAutenticacion';
 import { ErrorApi } from '../servicios/apiCliente';
 import {
@@ -11,6 +11,185 @@ import {
 } from '../servicios/planesServicio';
 
 type PestanaPlanes = 'tienda' | 'editor' | 'cobros';
+
+function formatearNumeroCuenta(raw: string): string {
+  const limpio = raw.replace(/\s+/g, '');
+  if (!limpio) return '0000 0000 0000 0000';
+  return limpio.replace(/(.{4})/g, '$1 ').trim();
+}
+
+/** Marco institucional HomeSOC alrededor del QR Bancario (para vista previa y modal de pago). */
+function MarcoQrHomeSoc({
+  qrImagenDataUrl,
+  banco,
+  titular,
+  montoBs,
+}: {
+  qrImagenDataUrl: string;
+  banco: string;
+  titular: string;
+  montoBs?: number;
+}) {
+  return (
+    <div className="w-full max-w-[290px] mx-auto rounded-2xl p-[1.5px] bg-gradient-to-br from-emerald-400/70 via-cyan-500/40 to-emerald-600/70 shadow-xl">
+      <div className="rounded-[15px] bg-[#07131a] text-white p-4 flex flex-col items-center gap-3 relative overflow-hidden">
+        {/* Cabecera de marca */}
+        <div className="w-full flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <img
+              src="/logo-homesoc.png"
+              alt="HomeSOC"
+              className="w-7 h-7 rounded-lg object-cover border border-emerald-400/40"
+            />
+            <div className="text-left">
+              <div className="text-xs font-extrabold tracking-tight leading-none">
+                Home<span className="text-emerald-400">SOC</span>
+              </div>
+              <div className="text-[9px] font-mono text-emerald-300/80 uppercase tracking-wider mt-0.5">
+                Pago QR Simple
+              </div>
+            </div>
+          </div>
+          {typeof montoBs === 'number' && (
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-[11px] font-mono font-bold text-emerald-300">
+              Bs {montoBs}
+            </span>
+          )}
+        </div>
+
+        {/* Marco con esquinas iluminadas alrededor del QR */}
+        <div className="relative p-2.5 rounded-2xl bg-white shadow-inner">
+          <span className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-emerald-400 rounded-tl-md" />
+          <span className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-emerald-400 rounded-tr-md" />
+          <span className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-emerald-400 rounded-bl-md" />
+          <span className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-emerald-400 rounded-br-md" />
+          {qrImagenDataUrl ? (
+            <img
+              src={qrImagenDataUrl}
+              alt="QR Bancario HomeSOC"
+              className="w-44 h-44 object-contain block rounded-lg"
+            />
+          ) : (
+            <div className="w-44 h-44 rounded-lg bg-slate-100 text-slate-400 flex flex-col items-center justify-center gap-1.5 text-center px-3">
+              <span className="material-symbols-outlined text-4xl">qr_code_2</span>
+              <span className="text-[10px] font-medium">Tu QR bancario aparecerá aquí</span>
+            </div>
+          )}
+        </div>
+
+        {/* Pie con banco y titular */}
+        <div className="w-full text-center border-t border-white/10 pt-2">
+          <div className="text-[11px] font-semibold text-white truncate">
+            {titular || 'Titular de la cuenta'}
+          </div>
+          <div className="text-[10px] font-mono text-emerald-300/80 truncate">
+            {banco || 'Banco • Bolivia'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Tarjeta bancaria realista interactiva con botón de copiar cuenta (vista previa y pago por transferencia). */
+function TarjetaBancariaVisual({
+  banco,
+  titular,
+  numeroCuenta,
+  montoBs,
+}: {
+  banco: string;
+  titular: string;
+  numeroCuenta: string;
+  montoBs?: number;
+}) {
+  const [copiado, setCopiado] = useState(false);
+
+  const copiarCuenta = () => {
+    if (!numeroCuenta.trim()) return;
+    void navigator.clipboard.writeText(numeroCuenta.trim());
+    setCopiado(true);
+    window.setTimeout(() => setCopiado(false), 1800);
+  };
+
+  return (
+    <div className="w-full max-w-[360px] mx-auto rounded-2xl p-5 text-white relative overflow-hidden shadow-2xl border border-white/15 bg-gradient-to-br from-[#0a192f] via-[#0e3b43] to-[#064e3b]">
+      {/* Brillos decorativos tipo tarjeta premium */}
+      <div className="pointer-events-none absolute -top-12 -right-12 w-36 h-36 rounded-full bg-emerald-400/20 blur-2xl" />
+      <div className="pointer-events-none absolute -bottom-14 -left-10 w-36 h-36 rounded-full bg-cyan-400/15 blur-2xl" />
+
+      <div className="relative z-10 flex flex-col gap-4">
+        {/* Fila superior: logo HomeSOC + nombre del banco */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <img
+              src="/logo-homesoc.png"
+              alt="HomeSOC"
+              className="w-6 h-6 rounded-md object-cover border border-white/25"
+            />
+            <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-200">
+              Transferencia
+            </span>
+          </div>
+          <span className="text-xs font-bold tracking-wide text-white truncate max-w-[160px]">
+            {banco || 'TU BANCO'}
+          </span>
+        </div>
+
+        {/* Chip EMV + contactless + monto */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-7 rounded-md bg-gradient-to-br from-amber-200 via-amber-400 to-yellow-600 border border-amber-100/60 shadow-inner flex items-center justify-center">
+              <div className="w-6 h-4 border border-amber-900/40 rounded-xs" />
+            </div>
+            <span className="material-symbols-outlined text-[20px] text-white/70 rotate-90">
+              wifi
+            </span>
+          </div>
+          {typeof montoBs === 'number' && (
+            <span className="px-2.5 py-0.5 rounded-full bg-black/30 border border-emerald-300/35 text-xs font-mono font-bold text-emerald-300">
+              Bs {montoBs}
+            </span>
+          )}
+        </div>
+
+        {/* Número de cuenta formateado + copiar */}
+        <div className="flex items-center justify-between gap-2 bg-black/25 rounded-xl px-3 py-2 border border-white/10">
+          <div className="font-mono text-sm sm:text-base tracking-widest text-white truncate">
+            {formatearNumeroCuenta(numeroCuenta)}
+          </div>
+          {numeroCuenta.trim() && (
+            <button
+              type="button"
+              onClick={copiarCuenta}
+              title="Copiar número de cuenta"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-[10px] font-semibold text-white cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined text-[13px]">
+                {copiado ? 'check' : 'content_copy'}
+              </span>
+              <span>{copiado ? 'Copiado' : 'Copiar'}</span>
+            </button>
+          )}
+        </div>
+
+        {/* Pie: Titular + Moneda */}
+        <div className="flex items-end justify-between gap-2 pt-0.5">
+          <div className="min-w-0">
+            <div className="text-[9px] uppercase tracking-widest text-white/60">Titular</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-white truncate">
+              {titular || 'NOMBRE DEL TITULAR'}
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-[9px] uppercase tracking-widest text-white/60">Moneda</div>
+            <div className="text-xs font-mono font-bold text-emerald-300">BOB • BS</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function TarjetaPlanVisual({
   plan,
@@ -161,6 +340,9 @@ export default function PlanesYSuscripcion() {
   const [consultandoIa, setConsultandoIa] = useState(false);
   const [consejoIa, setConsejoIa] = useState<RecomendacionPlanIa | null>(null);
   const [guardandoCobro, setGuardandoCobro] = useState(false);
+  const [arrastrandoQr, setArrastrandoQr] = useState(false);
+  const [vistaPreviaCobro, setVistaPreviaCobro] = useState<'qr' | 'transferencia'>('qr');
+  const inputQrRef = useRef<HTMLInputElement | null>(null);
 
   const cargarTodo = useCallback(async () => {
     if (!tokenAcceso) return;
@@ -284,9 +466,12 @@ export default function PlanesYSuscripcion() {
     }
   };
 
-  const manejarSubirQr = (e: ChangeEvent<HTMLInputElement>) => {
-    const archivo = e.target.files?.[0];
+  const procesarArchivoQr = (archivo?: File | null) => {
     if (!archivo) return;
+    if (!archivo.type.startsWith('image/')) {
+      setError('Selecciona una imagen válida (PNG, JPG o WEBP).');
+      return;
+    }
     if (archivo.size > 380_000) {
       setError('La imagen del QR debe pesar menos de 380 KB (recórtala o comprímela).');
       return;
@@ -295,9 +480,21 @@ export default function PlanesYSuscripcion() {
     lector.onload = () => {
       if (typeof lector.result === 'string') {
         setCobro((prev) => ({ ...prev, qrImagenDataUrl: lector.result as string }));
+        setVistaPreviaCobro('qr');
+        setError(null);
       }
     };
     lector.readAsDataURL(archivo);
+  };
+
+  const manejarSubirQr = (e: ChangeEvent<HTMLInputElement>) => {
+    procesarArchivoQr(e.target.files?.[0]);
+  };
+
+  const manejarSoltarQr = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setArrastrandoQr(false);
+    procesarArchivoQr(e.dataTransfer.files?.[0]);
   };
 
   const manejarGuardarCobro = async () => {
@@ -768,21 +965,100 @@ export default function PlanesYSuscripcion() {
                 className="rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs font-mono text-text-primary"
               />
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-text-primary">
-                  Imagen de tu QR Bancario (PNG/JPG, máx 380 KB)
-                </label>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-text-primary">
+                    Imagen de tu QR Bancario (PNG/JPG, máx 380 KB)
+                  </label>
+                  {cobro.qrImagenDataUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setCobro((p) => ({ ...p, qrImagenDataUrl: '' }))}
+                      className="text-[11px] text-status-critical hover:underline cursor-pointer"
+                    >
+                      Quitar QR
+                    </button>
+                  )}
+                </div>
                 <input
+                  ref={inputQrRef}
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
                   onChange={manejarSubirQr}
-                  className="text-xs text-text-muted"
+                  className="hidden"
                 />
-                {cobro.qrImagenDataUrl && (
-                  <img
-                    src={cobro.qrImagenDataUrl}
-                    alt="QR Bancario"
-                    className="w-44 h-44 object-contain rounded-xl border border-border-hairline bg-white p-2 mt-1"
+                <div
+                  onClick={() => inputQrRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setArrastrandoQr(true);
+                  }}
+                  onDragLeave={() => setArrastrandoQr(false)}
+                  onDrop={manejarSoltarQr}
+                  className={`rounded-2xl border-2 border-dashed p-5 text-center transition-all cursor-pointer flex flex-col items-center gap-1.5 ${
+                    arrastrandoQr
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border-hairline bg-surface-low hover:border-primary/50'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-3xl text-primary">
+                    cloud_upload
+                  </span>
+                  <div className="text-xs font-semibold text-text-primary">
+                    {arrastrandoQr
+                      ? 'Suelta aquí tu imagen QR'
+                      : 'Arrastra y suelta tu QR aquí o haz clic para seleccionar'}
+                  </div>
+                  <div className="text-[11px] text-text-dim">
+                    PNG, JPG o WEBP • Vista previa automática con marco HomeSOC
+                  </div>
+                </div>
+              </div>
+
+              {/* Vista previa en vivo de cómo verá el cliente el QR o la Tarjeta Bancaria */}
+              <div className="rounded-2xl bg-surface-low border border-border-hairline p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+                    Vista previa para el cliente
+                  </span>
+                  <div className="inline-flex p-0.5 rounded-lg bg-surface-card border border-border-hairline gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setVistaPreviaCobro('qr')}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold cursor-pointer ${
+                        vistaPreviaCobro === 'qr'
+                          ? 'bg-primary text-[var(--hs-on-accent)]'
+                          : 'text-text-muted'
+                      }`}
+                    >
+                      Marco QR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVistaPreviaCobro('transferencia')}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold cursor-pointer ${
+                        vistaPreviaCobro === 'transferencia'
+                          ? 'bg-primary text-[var(--hs-on-accent)]'
+                          : 'text-text-muted'
+                      }`}
+                    >
+                      Tarjeta Banco
+                    </button>
+                  </div>
+                </div>
+                {vistaPreviaCobro === 'qr' ? (
+                  <MarcoQrHomeSoc
+                    qrImagenDataUrl={cobro.qrImagenDataUrl}
+                    banco={cobro.banco}
+                    titular={cobro.titular}
+                    montoBs={35}
+                  />
+                ) : (
+                  <TarjetaBancariaVisual
+                    banco={cobro.banco}
+                    titular={cobro.titular}
+                    numeroCuenta={cobro.numeroCuenta}
+                    montoBs={35}
                   />
                 )}
               </div>
@@ -928,32 +1204,21 @@ export default function PlanesYSuscripcion() {
             </div>
 
             {metodoPago === 'qr' && (
-              <div className="p-3 rounded-xl bg-surface-low border border-border-hairline flex flex-col items-center gap-2 text-center">
-                {cobro.qrImagenDataUrl ? (
-                  <img
-                    src={cobro.qrImagenDataUrl}
-                    alt="QR de pago"
-                    className="w-48 h-48 object-contain rounded-xl bg-white p-2"
-                  />
-                ) : (
-                  <p className="text-xs text-text-muted">
-                    El administrador aún no cargó la imagen QR. Puedes usar Transferencia o Efectivo.
-                  </p>
-                )}
-                {cobro.titular && (
-                  <div className="text-[11px] font-mono text-text-muted">
-                    {cobro.banco} • {cobro.titular}
-                  </div>
-                )}
-              </div>
+              <MarcoQrHomeSoc
+                qrImagenDataUrl={cobro.qrImagenDataUrl}
+                banco={cobro.banco}
+                titular={cobro.titular}
+                montoBs={planElegido.precioBs}
+              />
             )}
 
             {metodoPago === 'transferencia' && (
-              <div className="p-3 rounded-xl bg-surface-low border border-border-hairline text-xs space-y-1 font-mono">
-                <div>Banco: {cobro.banco || 'Consultar al administrador'}</div>
-                <div>Titular: {cobro.titular || '—'}</div>
-                <div>Cuenta: {cobro.numeroCuenta || '—'}</div>
-              </div>
+              <TarjetaBancariaVisual
+                banco={cobro.banco}
+                titular={cobro.titular}
+                numeroCuenta={cobro.numeroCuenta}
+                montoBs={planElegido.precioBs}
+              />
             )}
 
             {cobro.instrucciones && (
