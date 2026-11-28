@@ -12,6 +12,7 @@
 
 export interface ResultadoRecorteQr {
   dataUrl: string;
+  imagenParaOcr: string;
   recortado: boolean;
   anchoOriginal: number;
   altoOriginal: number;
@@ -248,35 +249,77 @@ export async function recortarQrBancarioDesdeArchivo(archivo: File): Promise<Res
     }
   }
 
+  // Genera imagen ligera para OCR (máx 900px) ocultando la matriz QR con blanco para acelerar y mejorar la lectura del texto
+  const generarImagenOcr = (
+    box: { minX: number; minY: number; maxX: number; maxY: number } | null,
+  ): string => {
+    const esc = Math.min(1, 900 / Math.max(wOrig, hOrig));
+    const ow = Math.max(1, Math.round(wOrig * esc));
+    const oh = Math.max(1, Math.round(hOrig * esc));
+    const oc = document.createElement('canvas');
+    oc.width = ow;
+    oc.height = oh;
+    const ctx = oc.getContext('2d');
+    if (!ctx) return rawUrl;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, ow, oh);
+    ctx.drawImage(img, 0, 0, ow, oh);
+    if (box) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(
+        Math.floor(box.minX * esc),
+        Math.floor(box.minY * esc),
+        Math.ceil((box.maxX - box.minX) * esc),
+        Math.ceil((box.maxY - box.minY) * esc),
+      );
+    }
+    return oc.toDataURL('image/jpeg', 0.88);
+  };
+
+  const imagenParaOcr = generarImagenOcr(bbox);
+
   if (!bbox) {
-    return { dataUrl: rawUrl, recortado: false, anchoOriginal: wOrig, altoOriginal: hOrig };
+    return {
+      dataUrl: rawUrl,
+      imagenParaOcr,
+      recortado: false,
+      anchoOriginal: wOrig,
+      altoOriginal: hOrig,
+    };
   }
 
-  // Cuadrado centrado exactamente en el QR + 4.5% de zona blanca de seguridad (quiet zone)
+  // Recorte exacto al cuadrado del QR (sin absorber bordes del banco) + margen blanco limpio en el lienzo destino
   const bwReal = bbox.maxX - bbox.minX;
   const bhReal = bbox.maxY - bbox.minY;
   const lado = Math.max(bwReal, bhReal);
   const cx = (bbox.minX + bbox.maxX) / 2;
   const cy = (bbox.minY + bbox.maxY) / 2;
-  const quiet = lado * 0.045;
 
-  const sx = Math.max(0, Math.floor(cx - lado / 2 - quiet));
-  const sy = Math.max(0, Math.floor(cy - lado / 2 - quiet));
-  const sLado = Math.min(wOrig - sx, hOrig - sy, Math.ceil(lado + quiet * 2));
+  const sx = Math.max(0, Math.floor(cx - lado / 2));
+  const sy = Math.max(0, Math.floor(cy - lado / 2));
+  const sLado = Math.min(wOrig - sx, hOrig - sy, Math.ceil(lado));
 
   const outSize = 560;
+  const margenBlanco = Math.round(outSize * 0.05);
+  const innerSize = outSize - margenBlanco * 2;
   const out = document.createElement('canvas');
   out.width = outSize;
   out.height = outSize;
   const octx = out.getContext('2d');
   if (!octx) {
-    return { dataUrl: rawUrl, recortado: false, anchoOriginal: wOrig, altoOriginal: hOrig };
+    return {
+      dataUrl: rawUrl,
+      imagenParaOcr,
+      recortado: false,
+      anchoOriginal: wOrig,
+      altoOriginal: hOrig,
+    };
   }
 
   octx.fillStyle = '#ffffff';
   octx.fillRect(0, 0, outSize, outSize);
   octx.imageSmoothingEnabled = false;
-  octx.drawImage(img, sx, sy, sLado, sLado, 0, 0, outSize, outSize);
+  octx.drawImage(img, sx, sy, sLado, sLado, margenBlanco, margenBlanco, innerSize, innerSize);
 
   // PNG nítido si pesa poco, o JPEG alta calidad si excede 220 KB
   let dataUrl = out.toDataURL('image/png');
@@ -284,5 +327,5 @@ export async function recortarQrBancarioDesdeArchivo(archivo: File): Promise<Res
     dataUrl = out.toDataURL('image/jpeg', 0.92);
   }
 
-  return { dataUrl, recortado: true, anchoOriginal: wOrig, altoOriginal: hOrig };
+  return { dataUrl, imagenParaOcr, recortado: true, anchoOriginal: wOrig, altoOriginal: hOrig };
 }

@@ -64,6 +64,17 @@ export const esquemaRecomendarPlanIa = z.object({
   iaBasicaHabilitada: z.boolean().default(false),
 });
 
+export const esquemaLeerQrOcr = z.object({
+  imagenDataUrl: z
+    .string()
+    .min(30, 'Imagen inválida')
+    .max(950_000, 'La imagen para OCR excede el tamaño máximo permitido')
+    .refine(
+      (v) => /^data:image\/(png|jpeg|jpg|webp);base64,/i.test(v),
+      'La imagen debe ser PNG, JPG o WEBP',
+    ),
+});
+
 export class PlanesController {
   constructor(private readonly casoUso: GestionarPlanesYSuscripciones) {}
 
@@ -256,6 +267,16 @@ export class PlanesController {
       const body = req.body as z.infer<typeof esquemaRecomendarPlanIa>;
       const recomendacion = await this.casoUso.recomendarPlanConIA(body);
       res.status(200).json({ recomendacion });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public leerQrOcr = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { imagenDataUrl } = req.body as z.infer<typeof esquemaLeerQrOcr>;
+      const datos = await this.casoUso.leerDatosQrConOcr(imagenDataUrl);
+      res.status(200).json({ datos });
     } catch (error) {
       next(error);
     }

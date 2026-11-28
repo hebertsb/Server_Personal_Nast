@@ -15,6 +15,10 @@ import {
 import { RepositorioUsuarios } from '../../dominio/interfaces/RepositorioUsuarios';
 import { AsistenteIA } from '../ia/AsistenteIA';
 import { NotificarEvento } from '../notificaciones/NotificarEvento';
+import {
+  DatosQrBancarioOcr,
+  extraerDatosQrBancarioConOcr,
+} from '../../infraestructura/sistema/LectorOcrQrBancario';
 
 const CONFIG_COBRO_DEFECTO: ConfiguracionCobro = {
   habilitarQr: true,
@@ -355,5 +359,12 @@ export class GestionarPlanesYSuscripciones {
       beneficiosSugeridos,
       consejoComercial,
     };
+  }
+
+  /**
+   * Analiza con OCR la imagen de un QR bancario para autocompletar Banco, Titular y Cuenta.
+   */
+  public async leerDatosQrConOcr(imagenDataUrl: string): Promise<DatosQrBancarioOcr> {
+    return extraerDatosQrBancarioConOcr(imagenDataUrl);
   }
 }

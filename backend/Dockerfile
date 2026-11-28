@@ -9,7 +9,7 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apk add --no-cache git docker-cli
+RUN apk add --no-cache git docker-cli tesseract-ocr tesseract-ocr-data-spa
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 COPY --from=compilador /app/dist ./dist

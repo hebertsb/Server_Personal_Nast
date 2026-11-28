@@ -105,6 +105,16 @@ export const planesServicio = {
   ): Promise<{ cobro: ConfiguracionCobroItem }> =>
     apiCliente.put<{ cobro: ConfiguracionCobroItem }>('/planes/cobro', datos, tokenAcceso),
 
+  leerQrOcr: (
+    imagenDataUrl: string,
+    tokenAcceso: string,
+  ): Promise<{
+    datos: { banco: string; titular: string; numeroCuenta: string; textoDetectado: string };
+  }> =>
+    apiCliente.post<{
+      datos: { banco: string; titular: string; numeroCuenta: string; textoDetectado: string };
+    }>('/planes/cobro/ocr', { imagenDataUrl }, tokenAcceso),
+
   listarSolicitudes: (
     tokenAcceso: string,
   ): Promise<{ solicitudes: SolicitudSuscripcionItem[] }> =>

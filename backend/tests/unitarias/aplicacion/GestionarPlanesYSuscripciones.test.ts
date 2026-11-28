@@ -3,6 +3,7 @@ import { GestionarPlanesYSuscripciones } from '../../../src/aplicacion/planes/Ge
 import { RepositorioAuditoria } from '../../../src/dominio/interfaces/RepositorioAuditoria';
 import { RepositorioPlanes } from '../../../src/dominio/interfaces/RepositorioPlanes';
 import { RepositorioUsuarios } from '../../../src/dominio/interfaces/RepositorioUsuarios';
+import { parsearTextoOcrQrBancario } from '../../../src/infraestructura/sistema/LectorOcrQrBancario';
 
 describe('GestionarPlanesYSuscripciones', () => {
   it('calcula recomendación comercial en Bs según recursos e IA ligera', async () => {
@@ -76,5 +77,21 @@ describe('GestionarPlanesYSuscripciones', () => {
     expect(crearSolicitud).toHaveBeenCalledWith(
       expect.objectContaining({ cicloFacturacion: 'anual', montoBs: 336 }),
     );
+  });
+
+  it('extrae banco, titular y cuenta de textos OCR de Banco Ganadero y BNB', () => {
+    const ganadero = parsearTextoOcrQrBancario(
+      'BANCO GANADERO\nBs 0.00\nSUAREZ BURGOS HEBERT\nCuenta de abono CA 1310369820\nPAGO SUSCRIPCIÓN\nVENCE EL 28 DE NOVIEMBRE, 2027',
+    );
+    expect(ganadero.banco).toBe('Banco Ganadero');
+    expect(ganadero.titular).toBe('Suarez Burgos Hebert');
+    expect(ganadero.numeroCuenta).toBe('1310369820');
+
+    const bnb = parsearTextoOcrQrBancario(
+      'BNB\nMonto: Bs. 0.00\nPagar a: Suarez Burgos Hebert\nCuenta destino: 2502339551\nConcepto: Sin especificar',
+    );
+    expect(bnb.banco).toBe('Banco Nacional de Bolivia (BNB)');
+    expect(bnb.titular).toBe('Suarez Burgos Hebert');
+    expect(bnb.numeroCuenta).toBe('2502339551');
   });
 });

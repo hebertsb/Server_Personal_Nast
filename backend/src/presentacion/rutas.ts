@@ -33,6 +33,7 @@ import { HealthController } from './controladores/HealthController';
 import {
   esquemaConfigCobro,
   esquemaCrearSolicitud,
+  esquemaLeerQrOcr,
   esquemaPlanHosting,
   esquemaRecomendarPlanIa,
   esquemaRevisarSolicitud,
@@ -556,6 +557,13 @@ export function crearRutas(deps: DependenciasRutas): Router {
       requerirSuperadmin,
       validarCuerpo(esquemaConfigCobro),
       deps.planesController.guardarConfigCobro,
+    );
+    routerApiV1.post(
+      '/planes/cobro/ocr',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaLeerQrOcr),
+      deps.planesController.leerQrOcr,
     );
     routerApiV1.get(
       '/planes/solicitudes',

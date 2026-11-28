@@ -402,6 +402,7 @@ export default function PlanesYSuscripcion() {
   const [consejoIa, setConsejoIa] = useState<RecomendacionPlanIa | null>(null);
   const [guardandoCobro, setGuardandoCobro] = useState(false);
   const [arrastrandoQr, setArrastrandoQr] = useState(false);
+  const [leyendoOcr, setLeyendoOcr] = useState(false);
   const [vistaPreviaCobro, setVistaPreviaCobro] = useState<'qr' | 'transferencia'>('qr');
   const inputQrRef = useRef<HTMLInputElement | null>(null);
 
@@ -549,11 +550,42 @@ export default function PlanesYSuscripcion() {
       setCobro((prev) => ({ ...prev, qrImagenDataUrl: resultado.dataUrl }));
       setVistaPreviaCobro('qr');
       setError(null);
-      setAviso(
-        resultado.recortado
-          ? 'QR detectado y recortado automáticamente al centro para que se vea grande en celular. Completa Banco, Titular y Cuenta arriba para mostrarlos debajo del marco.'
-          : 'Imagen cargada. Si incluye marco del banco, recórtala o verifica la vista previa.',
-      );
+
+      // Ejecutar OCR en segundo plano para autocompletar Banco, Titular y Cuenta en el marco y tarjeta
+      if (tokenAcceso && resultado.imagenParaOcr) {
+        setLeyendoOcr(true);
+        setAviso('QR recortado al centro. Escaneando Banco, Titular y Cuenta con OCR…');
+        try {
+          const { datos } = await planesServicio.leerQrOcr(resultado.imagenParaOcr, tokenAcceso);
+          const encontrados: string[] = [];
+          setCobro((prev) => ({
+            ...prev,
+            banco: datos.banco || prev.banco,
+            titular: datos.titular || prev.titular,
+            numeroCuenta: datos.numeroCuenta || prev.numeroCuenta,
+          }));
+          if (datos.banco) encontrados.push(`Banco: ${datos.banco}`);
+          if (datos.titular) encontrados.push(`Titular: ${datos.titular}`);
+          if (datos.numeroCuenta) encontrados.push(`Cuenta: ${datos.numeroCuenta}`);
+          setAviso(
+            encontrados.length > 0
+              ? `QR recortado y datos detectados con OCR (${encontrados.join(' • ')}). Revisa y haz clic en Guardar.`
+              : 'QR recortado automáticamente al centro. Completa Banco, Titular y Cuenta si faltó algún dato.',
+          );
+        } catch {
+          setAviso(
+            'QR recortado automáticamente al centro. Completa Banco, Titular y Cuenta arriba.',
+          );
+        } finally {
+          setLeyendoOcr(false);
+        }
+      } else {
+        setAviso(
+          resultado.recortado
+            ? 'QR detectado y recortado automáticamente al centro.'
+            : 'Imagen cargada.',
+        );
+      }
     } catch {
       setError('No se pudo procesar la imagen del QR.');
     }
@@ -1166,7 +1198,9 @@ export default function PlanesYSuscripcion() {
                       : 'Arrastra y suelta tu QR aquí o haz clic para seleccionar'}
                   </div>
                   <div className="text-[11px] text-text-dim">
-                    PNG, JPG o WEBP • Vista previa automática con marco HomeSOC
+                    {leyendoOcr
+                      ? 'Escaneando Banco, Titular y Cuenta con OCR…'
+                      : 'PNG, JPG o WEBP • Auto-recorte QR + lectura automática OCR'}
                   </div>
                 </div>
               </div>
