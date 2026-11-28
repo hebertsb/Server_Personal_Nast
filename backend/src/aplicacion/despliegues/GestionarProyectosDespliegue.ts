@@ -83,6 +83,13 @@ export class GestionarProyectosDespliegue {
     private readonly notificarEvento?: NotificarEvento,
     private readonly ejecutorDespliegue?: EjecutorDespliegue,
     private readonly listarPuertosEnUso?: () => Promise<number[]>,
+    private readonly sincronizarPortafolio?: (datos: {
+      nombreProyecto: string;
+      nombreCompleto: string;
+      nombreContenedor: string;
+      exitoso: boolean;
+      ejecutadoPor: string;
+    }) => Promise<void>,
   ) {}
 
   /** Inspecciona puertos Docker activos + proyectos registrados y devuelve el próximo puerto libre. */
@@ -547,6 +554,15 @@ export class GestionarProyectosDespliegue {
         tipoEvento: 'despliegue_reporte',
         mensaje: formatearReporteTelegram(reporteReal),
       });
+
+      // Sincronizar automáticamente en el Portafolio de Proyectos
+      await this.sincronizarPortafolio?.({
+        nombreProyecto: proyecto.nombreProyecto,
+        nombreCompleto: proyecto.nombreCompleto,
+        nombreContenedor: resultadoReal.nombreContenedor,
+        exitoso: resultadoReal.exitoso,
+        ejecutadoPor: ctx.nombreUsuario,
+      }).catch(() => {});
 
       return registroReal;
     }

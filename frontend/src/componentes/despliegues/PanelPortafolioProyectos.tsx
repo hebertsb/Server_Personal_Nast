@@ -214,6 +214,35 @@ export default function PanelPortafolioProyectos() {
     }
   };
 
+  const manejarCrearTicket = async (
+    proyectoId: string,
+    servicio: string,
+    responsableSugerido: string,
+  ) => {
+    if (!tokenAcceso || !puedeEditar) return;
+    const encargado = window.prompt(
+      `¿A quién le asignas el ticket para arreglar "${servicio}"?`,
+      responsableSugerido || usuario?.nombreUsuario || 'Encargado de backend',
+    );
+    if (encargado === null) return;
+    const detalle =
+      window.prompt('Nota breve para el ticket (opcional):', 'Servicio caído detectado en HomeSOC') ??
+      '';
+    try {
+      await portafolioServicio.crearTicketIncidente(
+        proyectoId,
+        { servicio, encargado: encargado.trim(), detalle: detalle.trim() },
+        tokenAcceso,
+      );
+      setAviso(
+        `Ticket creado para "${servicio}" (asignado a ${encargado.trim() || 'Sin asignar'}) y enviado por Telegram/n8n.`,
+      );
+      await cargar();
+    } catch (err) {
+      setError(err instanceof ErrorApi ? err.message : 'No se pudo crear el ticket');
+    }
+  };
+
   return (
     <div className="flex flex-col gap-5">
       {error && (
@@ -404,17 +433,69 @@ export default function PanelPortafolioProyectos() {
                 )}
               </div>
 
+              {/* Barra de progreso (% terminado del proyecto) */}
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-text-muted">Avance del proyecto</span>
+                  <span className="font-semibold text-primary">
+                    {proy.completitudPorcentaje}% completado
+                  </span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-surface-low overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.max(0, proy.completitudPorcentaje))}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Alerta destacada de servicios caídos con botón de Ticket */}
+              {proy.serviciosCaidos && proy.serviciosCaidos.length > 0 && (
+                <div className="p-3 rounded-xl bg-error-container border border-status-critical/30 flex flex-col gap-2">
+                  <div className="text-xs font-semibold text-status-critical flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px]">error</span>
+                    <span>Servicio(s) caído(s): {proy.serviciosCaidos.join(', ')}</span>
+                  </div>
+                  {puedeEditar && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {proy.serviciosCaidos.map((srv) => {
+                        const compMatch = proy.componentes.find(
+                          (c) => c.contenedorNombre === srv || c.nombre === srv,
+                        );
+                        return (
+                          <button
+                            key={srv}
+                            type="button"
+                            onClick={() =>
+                              void manejarCrearTicket(proy.id, srv, compMatch?.responsable ?? '')
+                            }
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-status-critical text-white text-[11px] font-semibold cursor-pointer hover:opacity-90"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">
+                              confirmation_number
+                            </span>
+                            <span>Mandar ticket: {srv}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Avisos rápidos del proyecto */}
-              {proy.avisos.length > 0 && (
+              {proy.avisos.filter((a) => !a.startsWith('Caído:')).length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {proy.avisos.map((av, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2.5 py-1 rounded-lg bg-status-warning/12 border border-status-warning/25 text-[11px] text-status-warning font-medium"
-                    >
-                      {av}
-                    </span>
-                  ))}
+                  {proy.avisos
+                    .filter((a) => !a.startsWith('Caído:'))
+                    .map((av, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 rounded-lg bg-status-warning/12 border border-status-warning/25 text-[11px] text-status-warning font-medium"
+                      >
+                        {av}
+                      </span>
+                    ))}
                 </div>
               )}
 

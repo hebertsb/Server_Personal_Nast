@@ -100,6 +100,7 @@ export class GestionarPortafolioProyectos {
       let cpuExtra = 0;
       let activosExtra = 0;
       let caidosExtra = 0;
+      const nombresCaidosExtra: string[] = [];
 
       if (prefijo.length >= 2) {
         for (const c of contenedores) {
@@ -109,8 +110,12 @@ export class GestionarPortafolioProyectos {
             contenedoresVinculados.add(nl);
             ramExtra += c.ramUsadaMb;
             cpuExtra += c.porcentajeCpu;
-            if (c.estado === 'running') activosExtra += 1;
-            else caidosExtra += 1;
+            if (c.estado === 'running') {
+              activosExtra += 1;
+            } else {
+              caidosExtra += 1;
+              nombresCaidosExtra.push(c.nombre);
+            }
           }
         }
       }
@@ -128,6 +133,12 @@ export class GestionarPortafolioProyectos {
         compsEnVivo.filter((c) => c.estadoVivo === 'activo').length + activosExtra;
       const contenedoresCaidos =
         compsEnVivo.filter((c) => c.estadoVivo === 'caido').length + caidosExtra;
+      const serviciosCaidos = [
+        ...compsEnVivo
+          .filter((c) => c.estadoVivo === 'caido')
+          .map((c) => c.contenedorNombre || c.nombre),
+        ...nombresCaidosExtra,
+      ];
 
       const tieneLanding = compsEnVivo.some(
         (c) => c.tipo === 'landing' && c.estadoVivo === 'activo',
@@ -144,8 +155,8 @@ export class GestionarPortafolioProyectos {
         totalItems > 0 ? Math.round((itemsCompletos / totalItems) * 100) : 0;
 
       const avisos: string[] = [];
-      if (contenedoresCaidos > 0) {
-        avisos.push(`${contenedoresCaidos} componente(s) caído(s)`);
+      if (serviciosCaidos.length > 0) {
+        avisos.push(`Caído: ${serviciosCaidos.join(', ')}`);
       }
       if (!tieneLanding) {
         avisos.push('Sin Landing Page activa');
@@ -162,6 +173,7 @@ export class GestionarPortafolioProyectos {
         cpuTotalPorcentaje,
         contenedoresActivos,
         contenedoresCaidos,
+        serviciosCaidos,
         tieneLanding,
         tieneDemo,
         pendientesAbiertos,
@@ -364,5 +376,97 @@ export class GestionarPortafolioProyectos {
 
   public async eliminarTarea(id: string): Promise<boolean> {
     return this.repo.eliminarTarea(id);
+  }
+
+  /**
+   * Crea un ticket de incidente de alta prioridad para un servicio caído o con problemas
+   * y despacha la alerta al encargado vía Observer (Telegram / n8n).
+   */
+  public async crearTicketIncidente(
+    datos: {
+      proyectoId: string;
+      servicio: string;
+      encargado: string;
+      detalle?: string;
+    },
+    reportadoPor: string,
+  ): Promise<TareaPortafolio> {
+    const proy = await this.repo.obtenerProyectoPorId(datos.proyectoId);
+    const titulo = `[TICKET] Arreglar servicio caído: ${datos.servicio}${
+      datos.detalle ? ` (${datos.detalle})` : ''
+    }`.slice(0, 240);
+
+    const tarea = await this.repo.crearTarea({
+      proyectoId: datos.proyectoId,
+      titulo,
+      prioridad: 'alta',
+      asignadoA: datos.encargado || 'Sin asignar',
+      actualizadoPor: reportadoPor,
+    });
+
+    await this.notificarEvento?.emitir({
+      tipoEvento: 'portafolio_actualizacion',
+      mensaje: `🚨 [TICKET] Proyecto "${proy?.nombre ?? datos.proyectoId}"\nServicio con problema: ${datos.servicio}\nEncargado: ${datos.encargado || 'Sin asignar'}\nReportado por: ${reportadoPor}${datos.detalle ? `\nDetalle: ${datos.detalle}` : ''}`,
+    });
+
+    return tarea;
+  }
+
+  /**
+   * Registra o actualiza automáticamente el proyecto y su componente en el Portafolio
+   * tras un despliegue desde GitHub o MCP.
+   */
+  public async sincronizarDesdeDespliegue(datos: {
+    nombreProyecto: string;
+    nombreCompleto: string;
+    nombreContenedor: string;
+    exitoso: boolean;
+    ejecutadoPor: string;
+  }): Promise<void> {
+    const proyectos = await this.repo.listarProyectos();
+    const prefijo = extraerPrefijoProyecto(datos.nombreProyecto);
+    let proyecto = proyectos.find(
+      (p) =>
+        p.nombre.toLowerCase() === datos.nombreProyecto.toLowerCase() ||
+        (prefijo.length >= 2 && p.prefijoContenedor.toLowerCase() === prefijo),
+    );
+
+    if (!proyecto) {
+      proyecto = await this.repo.crearProyecto({
+        nombre: capitalizar(datos.nombreProyecto),
+        descripcion: `Desplegado desde ${datos.nombreCompleto}`,
+        prefijoContenedor: prefijo || datos.nombreProyecto.toLowerCase(),
+        estado: datos.exitoso ? 'en_produccion' : 'en_desarrollo',
+        repositorioUrl: `https://github.com/${datos.nombreCompleto}`,
+        creadoPor: datos.ejecutadoPor,
+      });
+    }
+
+    const componentes = (await this.repo.listarComponentes()).filter(
+      (c) => c.proyectoId === proyecto!.id,
+    );
+    const existente = componentes.find(
+      (c) =>
+        c.contenedorNombre.toLowerCase() === datos.nombreContenedor.toLowerCase() ||
+        c.nombre.toLowerCase() === datos.nombreProyecto.toLowerCase(),
+    );
+
+    if (existente) {
+      await this.repo.actualizarComponente(existente.id, {
+        contenedorNombre: datos.nombreContenedor,
+        estadoManual: datos.exitoso ? 'activo' : 'caido',
+        responsable: datos.ejecutadoPor,
+      });
+    } else {
+      await this.repo.crearComponente({
+        proyectoId: proyecto.id,
+        tipo: inferirTipoComponente(datos.nombreProyecto),
+        nombre: datos.nombreProyecto,
+        url: '',
+        contenedorNombre: datos.nombreContenedor,
+        estadoManual: datos.exitoso ? 'activo' : 'caido',
+        responsable: datos.ejecutadoPor,
+      });
+    }
   }
 }

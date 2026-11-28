@@ -49,6 +49,7 @@ export interface ProyectoPortafolioItem {
   cpuTotalPorcentaje: number;
   contenedoresActivos: number;
   contenedoresCaidos: number;
+  serviciosCaidos: string[];
   tieneLanding: boolean;
   tieneDemo: boolean;
   pendientesAbiertos: number;
@@ -159,6 +160,17 @@ export const portafolioServicio = {
   eliminarTarea: (tareaId: string, tokenAcceso: string): Promise<{ mensaje: string }> =>
     apiCliente.delete<{ mensaje: string }>(
       `/portafolio/tareas/${encodeURIComponent(tareaId)}`,
+      tokenAcceso,
+    ),
+
+  crearTicketIncidente: (
+    proyectoId: string,
+    datos: { servicio: string; encargado: string; detalle?: string },
+    tokenAcceso: string,
+  ): Promise<{ ticket: TareaPortafolioItem }> =>
+    apiCliente.post<{ ticket: TareaPortafolioItem }>(
+      `/portafolio/proyectos/${encodeURIComponent(proyectoId)}/tickets`,
+      datos,
       tokenAcceso,
     ),
 };

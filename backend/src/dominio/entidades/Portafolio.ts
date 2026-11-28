@@ -53,6 +53,7 @@ export interface ProyectoPortafolioCompleto extends ProyectoPortafolio {
   cpuTotalPorcentaje: number;
   contenedoresActivos: number;
   contenedoresCaidos: number;
+  serviciosCaidos: string[];
   tieneLanding: boolean;
   tieneDemo: boolean;
   pendientesAbiertos: number;

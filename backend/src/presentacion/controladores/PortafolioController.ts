@@ -40,6 +40,12 @@ export const esquemaActualizarTareaPortafolio = z.object({
   asignadoA: z.string().trim().max(80).optional(),
 });
 
+export const esquemaCrearTicketPortafolio = z.object({
+  servicio: z.string().trim().min(1, 'Servicio obligatorio').max(120),
+  encargado: z.string().trim().max(80).optional().default(''),
+  detalle: z.string().trim().max(180).optional().default(''),
+});
+
 const esquemaUuid = z.string().uuid('Identificador inválido');
 
 function puedeEditarPortafolio(rol?: string): boolean {
@@ -240,6 +246,34 @@ export class PortafolioController {
       }
       await this.casoUso.eliminarTarea(tareaId.data);
       res.status(200).json({ mensaje: 'Pendiente eliminado' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public crearTicket = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const u = req.usuarioAutenticado;
+      if (!u || !puedeEditarPortafolio(u.rol)) {
+        res.status(403).json({ error: { codigo: 'PERMISOS_INSUFICIENTES', mensaje: 'Sin permisos de edición' } });
+        return;
+      }
+      const proyectoId = esquemaUuid.safeParse(req.params.id);
+      if (!proyectoId.success) {
+        res.status(400).json({ error: { codigo: 'VALIDACION_FALLIDA', mensaje: 'ID de proyecto inválido' } });
+        return;
+      }
+      const body = req.body as z.infer<typeof esquemaCrearTicketPortafolio>;
+      const ticket = await this.casoUso.crearTicketIncidente(
+        {
+          proyectoId: proyectoId.data,
+          servicio: body.servicio,
+          encargado: body.encargado,
+          detalle: body.detalle,
+        },
+        u.nombreUsuario,
+      );
+      res.status(201).json({ ticket });
     } catch (error) {
       next(error);
     }

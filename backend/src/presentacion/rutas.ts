@@ -36,6 +36,7 @@ import {
   esquemaCrearComponentePortafolio,
   esquemaCrearProyectoPortafolio,
   esquemaCrearTareaPortafolio,
+  esquemaCrearTicketPortafolio,
   PortafolioController,
 } from './controladores/PortafolioController';
 import { RecursosController } from './controladores/RecursosController';
@@ -495,6 +496,12 @@ export function crearRutas(deps: DependenciasRutas): Router {
       '/portafolio/tareas/:tareaId',
       deps.middlewareAutenticacion,
       deps.portafolioController.eliminarTarea,
+    );
+    routerApiV1.post(
+      '/portafolio/proyectos/:id/tickets',
+      deps.middlewareAutenticacion,
+      validarCuerpo(esquemaCrearTicketPortafolio),
+      deps.portafolioController.crearTicket,
     );
   }
 

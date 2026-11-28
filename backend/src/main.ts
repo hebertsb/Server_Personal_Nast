@@ -238,6 +238,11 @@ async function iniciarServidor(): Promise<void> {
     }
   };
 
+  const casoUsoPortafolio = new GestionarPortafolioProyectos(
+    repositorioPortafolio,
+    colectorDocker,
+    notificarEvento,
+  );
   const casoUsoProyectosDespliegue = new GestionarProyectosDespliegue(
     clienteGithub,
     repositorioConexionGithub,
@@ -247,6 +252,7 @@ async function iniciarServidor(): Promise<void> {
     notificarEvento,
     ejecutorDespliegue,
     listarPuertosDockerEnUso,
+    (datos) => casoUsoPortafolio.sincronizarDesdeDespliegue(datos),
   );
   const casoUsoAutomatizaciones = new GestionarAutomatizaciones(
     repositorioAutomatizaciones,
@@ -265,11 +271,6 @@ async function iniciarServidor(): Promise<void> {
     ollamaUrl: config.IA_OLLAMA_URL,
     modelo: config.IA_MODELO,
   });
-  const casoUsoPortafolio = new GestionarPortafolioProyectos(
-    repositorioPortafolio,
-    colectorDocker,
-    notificarEvento,
-  );
   const casoUsoAsistenteIA = new AsistenteIA(
     proveedorIA,
     repositorioDespliegues,
