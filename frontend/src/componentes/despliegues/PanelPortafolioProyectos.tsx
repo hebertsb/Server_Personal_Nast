@@ -75,6 +75,16 @@ export default function PanelPortafolioProyectos() {
     Record<string, PrioridadTareaPortafolio>
   >({});
 
+  // Modal propio de HomeSOC para crear Ticket de Incidente (sin window.prompt)
+  const [modalTicket, setModalTicket] = useState<{
+    proyectoId: string;
+    proyectoNombre: string;
+    servicio: string;
+    encargado: string;
+    detalle: string;
+  } | null>(null);
+  const [enviandoTicket, setEnviandoTicket] = useState(false);
+
   const puedeEditar =
     usuario?.rol === 'superadmin' ||
     usuario?.rol === 'administrador' ||
@@ -214,32 +224,47 @@ export default function PanelPortafolioProyectos() {
     }
   };
 
-  const manejarCrearTicket = async (
+  const abrirModalTicket = (
     proyectoId: string,
+    proyectoNombre: string,
     servicio: string,
     responsableSugerido: string,
   ) => {
-    if (!tokenAcceso || !puedeEditar) return;
-    const encargado = window.prompt(
-      `¿A quién le asignas el ticket para arreglar "${servicio}"?`,
-      responsableSugerido || usuario?.nombreUsuario || 'Encargado de backend',
-    );
-    if (encargado === null) return;
-    const detalle =
-      window.prompt('Nota breve para el ticket (opcional):', 'Servicio caído detectado en HomeSOC') ??
-      '';
+    if (!puedeEditar) return;
+    setModalTicket({
+      proyectoId,
+      proyectoNombre,
+      servicio,
+      encargado: responsableSugerido || usuario?.nombreUsuario || '',
+      detalle: 'Servicio caído detectado en HomeSOC',
+    });
+  };
+
+  const manejarConfirmarTicket = async () => {
+    if (!tokenAcceso || !modalTicket) return;
+    setEnviandoTicket(true);
+    setError(null);
     try {
       await portafolioServicio.crearTicketIncidente(
-        proyectoId,
-        { servicio, encargado: encargado.trim(), detalle: detalle.trim() },
+        modalTicket.proyectoId,
+        {
+          servicio: modalTicket.servicio,
+          encargado: modalTicket.encargado.trim(),
+          detalle: modalTicket.detalle.trim(),
+        },
         tokenAcceso,
       );
       setAviso(
-        `Ticket creado para "${servicio}" (asignado a ${encargado.trim() || 'Sin asignar'}) y enviado por Telegram/n8n.`,
+        `Ticket creado para "${modalTicket.servicio}" (asignado a ${
+          modalTicket.encargado.trim() || 'Sin asignar'
+        }) y enviado por Telegram/n8n.`,
       );
+      setModalTicket(null);
       await cargar();
     } catch (err) {
       setError(err instanceof ErrorApi ? err.message : 'No se pudo crear el ticket');
+    } finally {
+      setEnviandoTicket(false);
     }
   };
 
@@ -467,7 +492,12 @@ export default function PanelPortafolioProyectos() {
                             key={srv}
                             type="button"
                             onClick={() =>
-                              void manejarCrearTicket(proy.id, srv, compMatch?.responsable ?? '')
+                              abrirModalTicket(
+                                proy.id,
+                                proy.nombre,
+                                srv,
+                                compMatch?.responsable ?? '',
+                              )
                             }
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-status-critical text-white text-[11px] font-semibold cursor-pointer hover:opacity-90"
                           >
@@ -721,6 +751,99 @@ export default function PanelPortafolioProyectos() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal propio de HomeSOC para crear Ticket de Incidente */}
+      {modalTicket && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+          onClick={() => !enviandoTicket && setModalTicket(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-surface-card border border-border-hairline shadow-2xl p-5 flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-error-container border border-status-critical/30 flex items-center justify-center text-status-critical shrink-0">
+                  <span className="material-symbols-outlined text-[20px]">
+                    confirmation_number
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-text-primary">
+                    Crear Ticket de Incidente
+                  </h3>
+                  <p className="text-[11px] text-text-muted">
+                    {modalTicket.proyectoNombre} •{' '}
+                    <span className="font-mono text-status-critical">{modalTicket.servicio}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={enviandoTicket}
+                onClick={() => setModalTicket(null)}
+                className="p-1 rounded-lg text-text-dim hover:text-text-primary cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-text-primary">
+                  Encargado del área / responsable
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={modalTicket.encargado}
+                  onChange={(e) =>
+                    setModalTicket((prev) => (prev ? { ...prev, encargado: e.target.value } : null))
+                  }
+                  placeholder="Ej. Hebert, @colaborador, Backend"
+                  className="rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-text-primary">
+                  Detalle del problema (se enviará por Telegram / n8n)
+                </label>
+                <textarea
+                  rows={3}
+                  value={modalTicket.detalle}
+                  onChange={(e) =>
+                    setModalTicket((prev) => (prev ? { ...prev, detalle: e.target.value } : null))
+                  }
+                  placeholder="Describe brevemente qué revisar…"
+                  className="rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-primary resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                disabled={enviandoTicket}
+                onClick={() => setModalTicket(null)}
+                className="px-3.5 py-2 rounded-xl border border-border-hairline bg-surface-low text-xs font-medium text-text-muted hover:text-text-primary cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={enviandoTicket}
+                onClick={() => void manejarConfirmarTicket()}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-status-critical text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[15px]">send</span>
+                <span>{enviandoTicket ? 'Enviando…' : 'Crear ticket y avisar'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
