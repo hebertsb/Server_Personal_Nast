@@ -223,8 +223,8 @@ export default function ServiciosYDespliegues() {
   };
 
   return (
-    <div className="w-full pt-20 px-4 sm:px-6 lg:px-7 pb-12 min-h-screen bg-canvas-base text-text-primary">
-      <div className="w-full flex flex-col gap-5">
+    <div className="w-full max-w-full overflow-x-hidden pt-20 px-4 sm:px-6 lg:px-7 pb-12 min-h-screen bg-canvas-base text-text-primary">
+      <div className="w-full min-w-0 flex flex-col gap-5">
         {/* Cabecera limpia y aireada */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -272,59 +272,61 @@ export default function ServiciosYDespliegues() {
           </div>
         </div>
 
-        {/* Sub-pestañas limpias */}
-        <div className="flex items-center justify-between gap-3 border-b border-border-hairline pb-3">
-          <div className="inline-flex items-center p-1 rounded-xl bg-surface-card border border-border-hairline gap-1">
-            <button
-              type="button"
-              onClick={() => setPestana('contenedores')}
-              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                pestana === 'contenedores'
-                  ? 'bg-primary text-[var(--hs-on-accent)] shadow-xs'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">deployed_code</span>
-              <span>Contenedores Docker</span>
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+        {/* Sub-pestañas limpias con scroll horizontal en móvil/PWA */}
+        <div className="flex items-center justify-between gap-3 border-b border-border-hairline pb-3 min-w-0">
+          <div className="w-full sm:w-auto max-w-full overflow-x-auto pb-0.5">
+            <div className="inline-flex items-center p-1 rounded-xl bg-surface-card border border-border-hairline gap-1 whitespace-nowrap">
+              <button
+                type="button"
+                onClick={() => setPestana('contenedores')}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   pestana === 'contenedores'
-                    ? 'bg-black/15 text-[var(--hs-on-accent)]'
-                    : 'bg-surface-card-elevated text-text-muted'
+                    ? 'bg-primary text-[var(--hs-on-accent)] shadow-xs'
+                    : 'text-text-muted hover:text-text-primary'
                 }`}
               >
-                {resumen.total}
-              </span>
-            </button>
+                <span className="material-symbols-outlined text-[16px]">deployed_code</span>
+                <span>Contenedores Docker</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                    pestana === 'contenedores'
+                      ? 'bg-black/15 text-[var(--hs-on-accent)]'
+                      : 'bg-surface-card-elevated text-text-muted'
+                  }`}
+                >
+                  {resumen.total}
+                </span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setPestana('despliegues')}
-              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                pestana === 'despliegues'
-                  ? 'bg-primary text-[var(--hs-on-accent)] shadow-xs'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">rocket_launch</span>
-              <span>Despliegues GitHub</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setPestana('despliegues')}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                  pestana === 'despliegues'
+                    ? 'bg-primary text-[var(--hs-on-accent)] shadow-xs'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">rocket_launch</span>
+                <span>Despliegues GitHub</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setPestana('portafolio')}
-              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                pestana === 'portafolio'
-                  ? 'bg-primary text-[var(--hs-on-accent)] shadow-xs'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">folder_managed</span>
-              <span>Proyectos y Pendientes</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setPestana('portafolio')}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+                  pestana === 'portafolio'
+                    ? 'bg-primary text-[var(--hs-on-accent)] shadow-xs'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">folder_managed</span>
+                <span>Proyectos y Pendientes</span>
+              </button>
+            </div>
           </div>
 
-          <span className="hidden sm:inline text-xs font-mono text-text-dim">
+          <span className="hidden sm:inline text-xs font-mono text-text-dim shrink-0">
             Última lectura: {formatearHora(actualizadoEn)}
           </span>
         </div>
