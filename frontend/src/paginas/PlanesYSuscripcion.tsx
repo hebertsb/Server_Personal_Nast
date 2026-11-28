@@ -10,6 +10,7 @@ import {
   RecomendacionPlanIa,
   SolicitudSuscripcionItem,
 } from '../servicios/planesServicio';
+import { recortarQrBancarioDesdeArchivo } from '../utilidades/recortarQrBancario';
 
 type PestanaPlanes = 'tienda' | 'editor' | 'cobros';
 
@@ -33,15 +34,17 @@ function MarcoQrHomeSoc({
   qrImagenDataUrl,
   banco,
   titular,
+  numeroCuenta,
   montoBs,
 }: {
   qrImagenDataUrl: string;
   banco: string;
   titular: string;
+  numeroCuenta?: string;
   montoBs?: number;
 }) {
   return (
-    <div className="w-full max-w-[290px] mx-auto rounded-2xl p-[1.5px] bg-gradient-to-br from-emerald-400/70 via-cyan-500/40 to-emerald-600/70 shadow-xl">
+    <div className="w-full max-w-[320px] mx-auto rounded-2xl p-[1.5px] bg-gradient-to-br from-emerald-400/70 via-cyan-500/40 to-emerald-600/70 shadow-xl">
       <div className="rounded-[15px] bg-[#07131a] text-white p-4 flex flex-col items-center gap-3 relative overflow-hidden">
         {/* Cabecera de marca */}
         <div className="w-full flex items-center justify-between gap-2">
@@ -61,14 +64,14 @@ function MarcoQrHomeSoc({
             </div>
           </div>
           {typeof montoBs === 'number' && (
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-[11px] font-mono font-bold text-emerald-300">
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-xs font-mono font-bold text-emerald-300">
               Bs {montoBs}
             </span>
           )}
         </div>
 
-        {/* Marco con esquinas iluminadas alrededor del QR */}
-        <div className="relative p-2.5 rounded-2xl bg-white shadow-inner">
+        {/* Marco con esquinas iluminadas ajustado al cuadrado del QR */}
+        <div className="relative p-2 rounded-2xl bg-white shadow-inner w-full max-w-[248px] aspect-square flex items-center justify-center">
           <span className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-emerald-400 rounded-tl-md" />
           <span className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-emerald-400 rounded-tr-md" />
           <span className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-emerald-400 rounded-bl-md" />
@@ -77,24 +80,29 @@ function MarcoQrHomeSoc({
             <img
               src={qrImagenDataUrl}
               alt="QR Bancario HomeSOC"
-              className="w-44 h-44 object-contain block rounded-lg"
+              className="w-full h-full object-contain block rounded-xl"
             />
           ) : (
-            <div className="w-44 h-44 rounded-lg bg-slate-100 text-slate-400 flex flex-col items-center justify-center gap-1.5 text-center px-3">
+            <div className="w-full h-full rounded-xl bg-slate-100 text-slate-400 flex flex-col items-center justify-center gap-1.5 text-center px-3">
               <span className="material-symbols-outlined text-4xl">qr_code_2</span>
               <span className="text-[10px] font-medium">Tu QR bancario aparecerá aquí</span>
             </div>
           )}
         </div>
 
-        {/* Pie con banco y titular */}
-        <div className="w-full text-center border-t border-white/10 pt-2">
-          <div className="text-[11px] font-semibold text-white truncate">
+        {/* Pie con banco, titular y cuenta */}
+        <div className="w-full text-center border-t border-white/10 pt-2.5 flex flex-col gap-0.5">
+          <div className="text-xs font-bold text-white truncate">
             {titular || 'Titular de la cuenta'}
           </div>
-          <div className="text-[10px] font-mono text-emerald-300/80 truncate">
+          <div className="text-[11px] font-mono text-emerald-300 truncate">
             {banco || 'Banco • Bolivia'}
           </div>
+          {numeroCuenta && (
+            <div className="text-[10px] font-mono text-white/60 truncate">
+              Cta: {numeroCuenta}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -522,35 +530,43 @@ export default function PlanesYSuscripcion() {
     }
   };
 
-  const procesarArchivoQr = (archivo?: File | null) => {
+  const procesarArchivoQr = async (archivo?: File | null) => {
     if (!archivo) return;
     if (!archivo.type.startsWith('image/')) {
       setError('Selecciona una imagen válida (PNG, JPG o WEBP).');
       return;
     }
-    if (archivo.size > 380_000) {
-      setError('La imagen del QR debe pesar menos de 380 KB (recórtala o comprímela).');
+    if (archivo.size > 5_000_000) {
+      setError('La imagen supera los 5 MB. Selecciona una captura más ligera.');
       return;
     }
-    const lector = new FileReader();
-    lector.onload = () => {
-      if (typeof lector.result === 'string') {
-        setCobro((prev) => ({ ...prev, qrImagenDataUrl: lector.result as string }));
-        setVistaPreviaCobro('qr');
-        setError(null);
+    try {
+      const resultado = await recortarQrBancarioDesdeArchivo(archivo);
+      if (resultado.dataUrl.length > 520_000) {
+        setError('La imagen procesada sigue siendo muy pesada (máx 380 KB).');
+        return;
       }
-    };
-    lector.readAsDataURL(archivo);
+      setCobro((prev) => ({ ...prev, qrImagenDataUrl: resultado.dataUrl }));
+      setVistaPreviaCobro('qr');
+      setError(null);
+      setAviso(
+        resultado.recortado
+          ? 'QR detectado y recortado automáticamente al centro para que se vea grande en celular. Completa Banco, Titular y Cuenta arriba para mostrarlos debajo del marco.'
+          : 'Imagen cargada. Si incluye marco del banco, recórtala o verifica la vista previa.',
+      );
+    } catch {
+      setError('No se pudo procesar la imagen del QR.');
+    }
   };
 
   const manejarSubirQr = (e: ChangeEvent<HTMLInputElement>) => {
-    procesarArchivoQr(e.target.files?.[0]);
+    void procesarArchivoQr(e.target.files?.[0]);
   };
 
   const manejarSoltarQr = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setArrastrandoQr(false);
-    procesarArchivoQr(e.dataTransfer.files?.[0]);
+    void procesarArchivoQr(e.dataTransfer.files?.[0]);
   };
 
   const manejarGuardarCobro = async () => {
@@ -1191,6 +1207,7 @@ export default function PlanesYSuscripcion() {
                     qrImagenDataUrl={cobro.qrImagenDataUrl}
                     banco={cobro.banco}
                     titular={cobro.titular}
+                    numeroCuenta={cobro.numeroCuenta}
                     montoBs={35}
                   />
                 ) : (
@@ -1393,6 +1410,7 @@ export default function PlanesYSuscripcion() {
                 qrImagenDataUrl={cobro.qrImagenDataUrl}
                 banco={cobro.banco}
                 titular={cobro.titular}
+                numeroCuenta={cobro.numeroCuenta}
                 montoBs={montoActualModal}
               />
             )}
