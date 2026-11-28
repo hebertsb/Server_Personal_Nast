@@ -1,5 +1,6 @@
 export type MetodoPagoSuscripcion = 'qr' | 'transferencia' | 'efectivo';
 export type EstadoSolicitudSuscripcion = 'pendiente' | 'aprobada' | 'rechazada' | 'cancelada';
+export type CicloFacturacion = 'mensual' | 'anual';
 
 export interface PlanHosting {
   id: string;
@@ -7,6 +8,7 @@ export interface PlanHosting {
   nombre: string;
   descripcion: string;
   precioBs: number;
+  descuentoAnualPct: number;
   periodo: string;
   cuotaRamMb: number;
   cuotaCpu: number;
@@ -26,6 +28,7 @@ export interface SolicitudSuscripcion {
   nombreUsuario: string;
   planId: string;
   planNombre: string;
+  cicloFacturacion: CicloFacturacion;
   montoBs: number;
   metodoPago: MetodoPagoSuscripcion;
   referenciaPago: string;

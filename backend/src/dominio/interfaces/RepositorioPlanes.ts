@@ -1,4 +1,5 @@
 import {
+  CicloFacturacion,
   EstadoSolicitudSuscripcion,
   MetodoPagoSuscripcion,
   PlanHosting,
@@ -10,6 +11,7 @@ export interface DatosCrearPlan {
   nombre: string;
   descripcion: string;
   precioBs: number;
+  descuentoAnualPct: number;
   periodo: string;
   cuotaRamMb: number;
   cuotaCpu: number;
@@ -35,6 +37,7 @@ export interface RepositorioPlanes {
     nombreUsuario: string;
     planId: string;
     planNombre: string;
+    cicloFacturacion: CicloFacturacion;
     montoBs: number;
     metodoPago: MetodoPagoSuscripcion;
     referenciaPago: string;

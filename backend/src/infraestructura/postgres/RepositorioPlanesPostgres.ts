@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import {
+  CicloFacturacion,
   EstadoSolicitudSuscripcion,
   MetodoPagoSuscripcion,
   PlanHosting,
@@ -16,6 +17,7 @@ interface FilaPlan {
   nombre: string;
   descripcion: string;
   precio_bs: string | number;
+  descuento_anual_pct?: number;
   periodo: string;
   cuota_ram_mb: number;
   cuota_cpu: string | number;
@@ -35,6 +37,7 @@ interface FilaSolicitud {
   nombre_usuario: string;
   plan_id: string;
   plan_nombre: string;
+  ciclo_facturacion?: CicloFacturacion;
   monto_bs: string | number;
   metodo_pago: MetodoPagoSuscripcion;
   referencia_pago: string;
@@ -56,6 +59,7 @@ function mapPlan(f: FilaPlan): PlanHosting {
     nombre: f.nombre,
     descripcion: f.descripcion,
     precioBs: Number(f.precio_bs ?? 0),
+    descuentoAnualPct: Number(f.descuento_anual_pct ?? 20),
     periodo: f.periodo || 'mes',
     cuotaRamMb: Number(f.cuota_ram_mb),
     cuotaCpu: Number(f.cuota_cpu),
@@ -79,6 +83,7 @@ function mapSolicitud(f: FilaSolicitud): SolicitudSuscripcion {
     nombreUsuario: f.nombre_usuario,
     planId: f.plan_id,
     planNombre: f.plan_nombre,
+    cicloFacturacion: f.ciclo_facturacion === 'anual' ? 'anual' : 'mensual',
     montoBs: Number(f.monto_bs ?? 0),
     metodoPago: f.metodo_pago,
     referenciaPago: f.referencia_pago,
@@ -113,16 +118,17 @@ export class RepositorioPlanesPostgres implements RepositorioPlanes {
   public async crearPlan(datos: DatosCrearPlan): Promise<PlanHosting> {
     const res = await this.pool.query<FilaPlan>(
       `INSERT INTO planes_hosting (
-         codigo, nombre, descripcion, precio_bs, periodo, cuota_ram_mb, cuota_cpu,
+         codigo, nombre, descripcion, precio_bs, descuento_anual_pct, periodo, cuota_ram_mb, cuota_cpu,
          max_proyectos, ia_basica_habilitada, beneficios, destacado, activo, orden
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14)
        RETURNING *`,
       [
         datos.codigo,
         datos.nombre,
         datos.descripcion,
         datos.precioBs,
+        datos.descuentoAnualPct,
         datos.periodo,
         datos.cuotaRamMb,
         datos.cuotaCpu,
@@ -149,15 +155,16 @@ export class RepositorioPlanesPostgres implements RepositorioPlanes {
            nombre = $3,
            descripcion = $4,
            precio_bs = $5,
-           periodo = $6,
-           cuota_ram_mb = $7,
-           cuota_cpu = $8,
-           max_proyectos = $9,
-           ia_basica_habilitada = $10,
-           beneficios = $11::jsonb,
-           destacado = $12,
-           activo = $13,
-           orden = $14,
+           descuento_anual_pct = $6,
+           periodo = $7,
+           cuota_ram_mb = $8,
+           cuota_cpu = $9,
+           max_proyectos = $10,
+           ia_basica_habilitada = $11,
+           beneficios = $12::jsonb,
+           destacado = $13,
+           activo = $14,
+           orden = $15,
            actualizado_en = NOW()
        WHERE id = $1
        RETURNING *`,
@@ -167,6 +174,7 @@ export class RepositorioPlanesPostgres implements RepositorioPlanes {
         datos.nombre ?? actual.nombre,
         datos.descripcion ?? actual.descripcion,
         datos.precioBs ?? actual.precioBs,
+        datos.descuentoAnualPct ?? actual.descuentoAnualPct,
         datos.periodo ?? actual.periodo,
         datos.cuotaRamMb ?? actual.cuotaRamMb,
         datos.cuotaCpu ?? actual.cuotaCpu,
@@ -211,6 +219,7 @@ export class RepositorioPlanesPostgres implements RepositorioPlanes {
     nombreUsuario: string;
     planId: string;
     planNombre: string;
+    cicloFacturacion: CicloFacturacion;
     montoBs: number;
     metodoPago: MetodoPagoSuscripcion;
     referenciaPago: string;
@@ -218,16 +227,17 @@ export class RepositorioPlanesPostgres implements RepositorioPlanes {
   }): Promise<SolicitudSuscripcion> {
     const res = await this.pool.query<FilaSolicitud>(
       `INSERT INTO solicitudes_suscripcion (
-         usuario_id, nombre_usuario, plan_id, plan_nombre, monto_bs,
+         usuario_id, nombre_usuario, plan_id, plan_nombre, ciclo_facturacion, monto_bs,
          metodo_pago, referencia_pago, nota_cliente
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         datos.usuarioId,
         datos.nombreUsuario,
         datos.planId,
         datos.planNombre,
+        datos.cicloFacturacion,
         datos.montoBs,
         datos.metodoPago,
         datos.referenciaPago,

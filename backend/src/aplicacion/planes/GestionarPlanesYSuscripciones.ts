@@ -1,4 +1,5 @@
 import {
+  CicloFacturacion,
   ConfiguracionCobro,
   MetodoPagoSuscripcion,
   PlanHosting,
@@ -164,6 +165,7 @@ export class GestionarPlanesYSuscripciones {
   public async crearSolicitud(
     entrada: {
       planId: string;
+      cicloFacturacion?: CicloFacturacion;
       metodoPago: MetodoPagoSuscripcion;
       referenciaPago: string;
       notaCliente: string;
@@ -175,20 +177,31 @@ export class GestionarPlanesYSuscripciones {
       throw new ErrorDominio('PLAN_NO_DISPONIBLE', 'El plan seleccionado no está disponible', 404);
     }
 
+    const ciclo: CicloFacturacion = entrada.cicloFacturacion === 'anual' ? 'anual' : 'mensual';
+    const descuentoPct = Math.max(0, Math.min(80, plan.descuentoAnualPct ?? 20));
+    const montoBs =
+      ciclo === 'anual'
+        ? Math.round(plan.precioBs * 12 * (1 - descuentoPct / 100))
+        : plan.precioBs;
+
     const solicitud = await this.repoPlanes.crearSolicitud({
       usuarioId: actor.usuarioId,
       nombreUsuario: actor.nombreUsuario,
       planId: plan.id,
       planNombre: plan.nombre,
-      montoBs: plan.precioBs,
+      cicloFacturacion: ciclo,
+      montoBs,
       metodoPago: entrada.metodoPago,
       referenciaPago: entrada.referenciaPago.trim(),
       notaCliente: entrada.notaCliente.trim(),
     });
 
+    const etiquetaCiclo =
+      ciclo === 'anual' ? `Anual (-${descuentoPct}% desc.)` : `Mensual (${plan.periodo})`;
+
     await this.notificarEvento?.emitir({
       tipoEvento: 'portafolio_actualizacion',
-      mensaje: `💳 Nueva solicitud de suscripción\nCliente: ${actor.nombreUsuario}\nPlan: ${plan.nombre} (Bs ${plan.precioBs}/${plan.periodo})\nMétodo: ${entrada.metodoPago.toUpperCase()}${
+      mensaje: `💳 Nueva solicitud de suscripción\nCliente: ${actor.nombreUsuario}\nPlan: ${plan.nombre} • ${etiquetaCiclo}\nMonto: Bs ${montoBs}\nMétodo: ${entrada.metodoPago.toUpperCase()}${
         entrada.referenciaPago ? `\nReferencia: ${entrada.referenciaPago}` : ''
       }${entrada.notaCliente ? `\nNota: ${entrada.notaCliente}` : ''}\nRevisa HomeSOC → Planes y Suscripción para aprobar en 1 clic.`,
     });

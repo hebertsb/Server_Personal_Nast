@@ -2,6 +2,7 @@ import { ChangeEvent, DragEvent, useCallback, useEffect, useRef, useState } from
 import { usarAutenticacion } from '../contexto/ContextoAutenticacion';
 import { ErrorApi } from '../servicios/apiCliente';
 import {
+  CicloFacturacion,
   ConfiguracionCobroItem,
   MetodoPagoSuscripcion,
   PlanHostingItem,
@@ -11,6 +12,15 @@ import {
 } from '../servicios/planesServicio';
 
 type PestanaPlanes = 'tienda' | 'editor' | 'cobros';
+
+function calcularMontosAnual(precioMensual: number, descuentoAnualPct: number) {
+  const pct = Math.max(0, Math.min(80, Number(descuentoAnualPct) || 0));
+  const totalSinDesc = Math.round(precioMensual * 12);
+  const totalAnual = Math.round(precioMensual * 12 * (1 - pct / 100));
+  const ahorroBs = Math.max(0, totalSinDesc - totalAnual);
+  const equivalenteMes = Math.round((totalAnual / 12) * 10) / 10;
+  return { pct, totalSinDesc, totalAnual, ahorroBs, equivalenteMes };
+}
 
 function formatearNumeroCuenta(raw: string): string {
   const limpio = raw.replace(/\s+/g, '');
@@ -193,15 +203,20 @@ function TarjetaBancariaVisual({
 
 function TarjetaPlanVisual({
   plan,
+  ciclo = 'mensual',
   esPlanActual,
   onElegir,
   soloVistaPrevia = false,
 }: {
   plan: Omit<PlanHostingItem, 'id'> & { id?: string };
+  ciclo?: CicloFacturacion;
   esPlanActual?: boolean;
   onElegir?: () => void;
   soloVistaPrevia?: boolean;
 }) {
+  const anual = calcularMontosAnual(plan.precioBs, plan.descuentoAnualPct);
+  const esAnual = ciclo === 'anual';
+
   return (
     <div
       className={`rounded-2xl p-5 flex flex-col justify-between gap-4 border transition-all ${
@@ -230,11 +245,46 @@ function TarjetaPlanVisual({
           </div>
         </div>
 
-        <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-extrabold font-mono text-text-primary">
-            Bs {plan.precioBs}
-          </span>
-          <span className="text-xs text-text-muted">/ {plan.periodo || 'mes'}</span>
+        <div className="flex flex-col gap-1">
+          {esAnual ? (
+            <>
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-3xl font-extrabold font-mono text-text-primary">
+                  Bs {anual.totalAnual}
+                </span>
+                <span className="text-xs text-text-muted">/ año</span>
+                {anual.pct > 0 && (
+                  <span className="text-xs font-mono text-text-dim line-through">
+                    Bs {anual.totalSinDesc}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {anual.pct > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400">
+                    -{anual.pct}% • Ahorras Bs {anual.ahorroBs}
+                  </span>
+                )}
+                <span className="text-[11px] font-mono text-text-dim">
+                  Equivale a Bs {anual.equivalenteMes}/mes
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-extrabold font-mono text-text-primary">
+                  Bs {plan.precioBs}
+                </span>
+                <span className="text-xs text-text-muted">/ {plan.periodo || 'mes'}</span>
+              </div>
+              {anual.pct > 0 && (
+                <div className="text-[11px] font-mono text-primary">
+                  Pago anual: Bs {anual.totalAnual}/año (-{anual.pct}%)
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         <p className="text-xs text-text-muted leading-relaxed">
@@ -317,7 +367,9 @@ export default function PlanesYSuscripcion() {
   const [aviso, setAviso] = useState<string | null>(null);
 
   // Modal de adquisición / pago para cliente
+  const [cicloTienda, setCicloTienda] = useState<CicloFacturacion>('mensual');
   const [planElegido, setPlanElegido] = useState<PlanHostingItem | null>(null);
+  const [cicloModal, setCicloModal] = useState<CicloFacturacion>('mensual');
   const [metodoPago, setMetodoPago] = useState<MetodoPagoSuscripcion>('qr');
   const [referenciaPago, setReferenciaPago] = useState('');
   const [notaCliente, setNotaCliente] = useState('');
@@ -329,6 +381,7 @@ export default function PlanesYSuscripcion() {
   const [formNombre, setFormNombre] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formPrecio, setFormPrecio] = useState('25');
+  const [formDescuentoAnual, setFormDescuentoAnual] = useState('20');
   const [formPeriodo, setFormPeriodo] = useState('mes');
   const [formRam, setFormRam] = useState('512');
   const [formCpu, setFormCpu] = useState('0.5');
@@ -374,6 +427,7 @@ export default function PlanesYSuscripcion() {
     setFormNombre(p.nombre);
     setFormDesc(p.descripcion);
     setFormPrecio(String(p.precioBs));
+    setFormDescuentoAnual(String(p.descuentoAnualPct ?? 20));
     setFormPeriodo(p.periodo);
     setFormRam(String(p.cuotaRamMb));
     setFormCpu(String(p.cuotaCpu));
@@ -392,6 +446,7 @@ export default function PlanesYSuscripcion() {
     setFormNombre('');
     setFormDesc('');
     setFormPrecio('25');
+    setFormDescuentoAnual('20');
     setFormPeriodo('mes');
     setFormRam('512');
     setFormCpu('0.5');
@@ -408,6 +463,7 @@ export default function PlanesYSuscripcion() {
     nombre: formNombre || 'Nuevo Plan',
     descripcion: formDesc,
     precioBs: Number(formPrecio) || 0,
+    descuentoAnualPct: Math.max(0, Math.min(80, Number(formDescuentoAnual) || 0)),
     periodo: formPeriodo || 'mes',
     cuotaRamMb: Number(formRam) || 512,
     cuotaCpu: Number(formCpu) || 0.5,
@@ -518,6 +574,7 @@ export default function PlanesYSuscripcion() {
       await planesServicio.crearSolicitud(
         {
           planId: planElegido.id,
+          cicloFacturacion: cicloModal,
           metodoPago,
           referenciaPago: referenciaPago.trim(),
           notaCliente: notaCliente.trim(),
@@ -623,6 +680,47 @@ export default function PlanesYSuscripcion() {
           <div className="p-8 text-center text-xs font-mono text-text-dim">Cargando planes…</div>
         ) : pestana === 'tienda' ? (
           <>
+            {/* Selector Mensual / Anual con descuento */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-surface-card border border-border-hairline px-4 py-3">
+              <div className="text-xs text-text-muted">
+                Elige pago mensual flexible o <strong className="text-text-primary">pago anual con descuento</strong> para proyectos y tesis de todo el año.
+              </div>
+              <div className="inline-flex p-1 rounded-xl bg-surface-low border border-border-hairline gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCicloTienda('mensual')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+                    cicloTienda === 'mensual'
+                      ? 'bg-primary text-[var(--hs-on-accent)]'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  Mensual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCicloTienda('anual')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+                    cicloTienda === 'anual'
+                      ? 'bg-primary text-[var(--hs-on-accent)]'
+                      : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  <span>Anual</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                      cicloTienda === 'anual'
+                        ? 'bg-black/20 text-white'
+                        : 'bg-emerald-500/15 text-emerald-400'
+                    }`}
+                  >
+                    Ahorra hasta{' '}
+                    {Math.max(20, ...planes.map((p) => p.descuentoAnualPct ?? 20))}%
+                  </span>
+                </button>
+              </div>
+            </div>
+
             {/* Catálogo visual de planes */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {planes
@@ -631,8 +729,12 @@ export default function PlanesYSuscripcion() {
                   <div key={p.id} className="flex flex-col gap-2">
                     <TarjetaPlanVisual
                       plan={p}
+                      ciclo={cicloTienda}
                       esPlanActual={usuario?.planNombre === p.codigo}
-                      onElegir={() => setPlanElegido(p)}
+                      onElegir={() => {
+                        setCicloModal(cicloTienda);
+                        setPlanElegido(p);
+                      }}
                     />
                     {esSuperadmin && (
                       <div className="flex gap-2 justify-end">
@@ -664,7 +766,8 @@ export default function PlanesYSuscripcion() {
                       <div>
                         <span className="font-semibold text-text-primary">{s.planNombre}</span>{' '}
                         <span className="font-mono text-text-muted">
-                          • Bs {s.montoBs} • {s.metodoPago.toUpperCase()}
+                          • {s.cicloFacturacion === 'anual' ? 'ANUAL' : 'MENSUAL'} • Bs {s.montoBs} •{' '}
+                          {s.metodoPago.toUpperCase()}
                         </span>
                         {esSuperadmin && (
                           <span className="ml-2 text-primary font-mono">({s.nombreUsuario})</span>
@@ -790,14 +893,25 @@ export default function PlanesYSuscripcion() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
                 <input
                   type="number"
                   min={0}
                   value={formPrecio}
                   onChange={(e) => setFormPrecio(e.target.value)}
-                  placeholder="Precio Bs"
+                  placeholder="Precio Bs/mes"
+                  title="Precio mensual en Bs"
                   className="rounded-xl bg-surface-low border border-border-hairline px-2.5 py-2 text-xs font-mono text-text-primary"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={80}
+                  value={formDescuentoAnual}
+                  onChange={(e) => setFormDescuentoAnual(e.target.value)}
+                  placeholder="Desc. anual %"
+                  title="Descuento % al pagar anual (ej. 20)"
+                  className="rounded-xl bg-surface-low border border-border-hairline px-2.5 py-2 text-xs font-mono text-emerald-400"
                 />
                 <input
                   type="text"
@@ -893,10 +1007,36 @@ export default function PlanesYSuscripcion() {
 
             {/* Vista Previa en tiempo real */}
             <div className="flex flex-col gap-2">
-              <div className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-                Vista previa en vivo (así lo verá tu cliente)
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+                  Vista previa en vivo (así lo verá tu cliente)
+                </div>
+                <div className="inline-flex p-0.5 rounded-lg bg-surface-card border border-border-hairline gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setCicloTienda('mensual')}
+                    className={`px-2 py-0.5 rounded-md text-[11px] font-semibold cursor-pointer ${
+                      cicloTienda === 'mensual'
+                        ? 'bg-primary text-[var(--hs-on-accent)]'
+                        : 'text-text-muted'
+                    }`}
+                  >
+                    Mensual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCicloTienda('anual')}
+                    className={`px-2 py-0.5 rounded-md text-[11px] font-semibold cursor-pointer ${
+                      cicloTienda === 'anual'
+                        ? 'bg-primary text-[var(--hs-on-accent)]'
+                        : 'text-text-muted'
+                    }`}
+                  >
+                    Anual (-{planPreview.descuentoAnualPct}%)
+                  </button>
+                </div>
               </div>
-              <TarjetaPlanVisual plan={planPreview} soloVistaPrevia />
+              <TarjetaPlanVisual plan={planPreview} ciclo={cicloTienda} soloVistaPrevia />
             </div>
           </div>
         ) : (
@@ -1093,7 +1233,7 @@ export default function PlanesYSuscripcion() {
                     <div key={s.id} className="py-3 flex flex-col gap-2 text-xs">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-bold text-text-primary">
-                          {s.nombreUsuario} → {s.planNombre} (Bs {s.montoBs})
+                          {s.nombreUsuario} → {s.planNombre} ({s.cicloFacturacion === 'anual' ? 'ANUAL' : 'MENSUAL'} • Bs {s.montoBs})
                         </span>
                         <span className="font-mono text-[10px] uppercase px-2 py-0.5 rounded bg-surface-low">
                           {s.estado}
@@ -1134,7 +1274,11 @@ export default function PlanesYSuscripcion() {
       </div>
 
       {/* Modal de Pago para Cliente (QR Bancario / Transferencia / Efectivo) */}
-      {planElegido && (
+      {planElegido && (() => {
+        const anualModal = calcularMontosAnual(planElegido.precioBs, planElegido.descuentoAnualPct);
+        const montoActualModal =
+          cicloModal === 'anual' ? anualModal.totalAnual : planElegido.precioBs;
+        return (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
           onClick={() => !enviandoSolicitud && setPlanElegido(null)}
@@ -1149,7 +1293,8 @@ export default function PlanesYSuscripcion() {
                   Adquirir {planElegido.nombre}
                 </h3>
                 <p className="text-xs font-mono text-primary font-semibold">
-                  Bs {planElegido.precioBs} / {planElegido.periodo} • {planElegido.cuotaRamMb} MB RAM
+                  Bs {montoActualModal} / {cicloModal === 'anual' ? 'año' : planElegido.periodo} •{' '}
+                  {planElegido.cuotaRamMb} MB RAM
                 </p>
               </div>
               <button
@@ -1158,6 +1303,46 @@ export default function PlanesYSuscripcion() {
                 className="p-1 rounded-lg text-text-dim hover:text-text-primary cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            {/* Selector Mensual vs Anual con descuento dentro del modal */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setCicloModal('mensual')}
+                className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                  cicloModal === 'mensual'
+                    ? 'bg-primary/12 border-primary text-text-primary'
+                    : 'bg-surface-low border-border-hairline text-text-muted'
+                }`}
+              >
+                <div className="text-[11px] font-semibold">Mensual</div>
+                <div className="text-sm font-mono font-bold">Bs {planElegido.precioBs}/mes</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCicloModal('anual')}
+                className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                  cicloModal === 'anual'
+                    ? 'bg-primary/12 border-primary text-text-primary'
+                    : 'bg-surface-low border-border-hairline text-text-muted'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[11px] font-semibold">Anual</span>
+                  {anualModal.pct > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[9px] font-mono font-bold">
+                      -{anualModal.pct}%
+                    </span>
+                  )}
+                </div>
+                <div className="text-sm font-mono font-bold">Bs {anualModal.totalAnual}/año</div>
+                {anualModal.ahorroBs > 0 && (
+                  <div className="text-[10px] font-mono text-emerald-400">
+                    Ahorras Bs {anualModal.ahorroBs}
+                  </div>
+                )}
               </button>
             </div>
 
@@ -1208,7 +1393,7 @@ export default function PlanesYSuscripcion() {
                 qrImagenDataUrl={cobro.qrImagenDataUrl}
                 banco={cobro.banco}
                 titular={cobro.titular}
-                montoBs={planElegido.precioBs}
+                montoBs={montoActualModal}
               />
             )}
 
@@ -1217,7 +1402,7 @@ export default function PlanesYSuscripcion() {
                 banco={cobro.banco}
                 titular={cobro.titular}
                 numeroCuenta={cobro.numeroCuenta}
-                montoBs={planElegido.precioBs}
+                montoBs={montoActualModal}
               />
             )}
 
@@ -1264,7 +1449,8 @@ export default function PlanesYSuscripcion() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

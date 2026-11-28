@@ -14,6 +14,7 @@ export const esquemaPlanHosting = z.object({
   nombre: z.string().trim().min(2).max(120),
   descripcion: z.string().trim().max(500).default(''),
   precioBs: z.coerce.number().min(0).max(100000).default(20),
+  descuentoAnualPct: z.coerce.number().int().min(0).max(80).default(20),
   periodo: z.string().trim().min(1).max(30).default('mes'),
   cuotaRamMb: z.coerce.number().int().min(128).max(8192).default(512),
   cuotaCpu: z.coerce.number().min(0.25).max(8).default(0.5),
@@ -45,6 +46,7 @@ export const esquemaConfigCobro = z.object({
 
 export const esquemaCrearSolicitud = z.object({
   planId: z.string().uuid('planId inválido'),
+  cicloFacturacion: z.enum(['mensual', 'anual']).default('mensual'),
   metodoPago: z.enum(['qr', 'transferencia', 'efectivo']),
   referenciaPago: z.string().trim().max(200).default(''),
   notaCliente: z.string().trim().max(500).default(''),

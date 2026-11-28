@@ -2,6 +2,7 @@ import { apiCliente } from './apiCliente';
 
 export type MetodoPagoSuscripcion = 'qr' | 'transferencia' | 'efectivo';
 export type EstadoSolicitudSuscripcion = 'pendiente' | 'aprobada' | 'rechazada' | 'cancelada';
+export type CicloFacturacion = 'mensual' | 'anual';
 
 export interface PlanHostingItem {
   id: string;
@@ -9,6 +10,7 @@ export interface PlanHostingItem {
   nombre: string;
   descripcion: string;
   precioBs: number;
+  descuentoAnualPct: number;
   periodo: string;
   cuotaRamMb: number;
   cuotaCpu: number;
@@ -37,6 +39,7 @@ export interface SolicitudSuscripcionItem {
   nombreUsuario: string;
   planId: string;
   planNombre: string;
+  cicloFacturacion: CicloFacturacion;
   montoBs: number;
   metodoPago: MetodoPagoSuscripcion;
   referenciaPago: string;
@@ -110,6 +113,7 @@ export const planesServicio = {
   crearSolicitud: (
     datos: {
       planId: string;
+      cicloFacturacion: CicloFacturacion;
       metodoPago: MetodoPagoSuscripcion;
       referenciaPago: string;
       notaCliente: string;
