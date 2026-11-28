@@ -526,19 +526,6 @@ export function crearRutas(deps: DependenciasRutas): Router {
       validarCuerpo(esquemaPlanHosting),
       deps.planesController.crearPlan,
     );
-    routerApiV1.put(
-      '/planes/:id',
-      deps.middlewareAutenticacion,
-      requerirSuperadmin,
-      validarCuerpo(esquemaPlanHosting),
-      deps.planesController.actualizarPlan,
-    );
-    routerApiV1.delete(
-      '/planes/:id',
-      deps.middlewareAutenticacion,
-      requerirSuperadmin,
-      deps.planesController.eliminarPlan,
-    );
     routerApiV1.post(
       '/planes/recomendar-ia',
       deps.middlewareAutenticacion,
@@ -587,6 +574,19 @@ export function crearRutas(deps: DependenciasRutas): Router {
       '/planes/solicitudes/:id/cancelar',
       deps.middlewareAutenticacion,
       deps.planesController.cancelarSolicitud,
+    );
+    routerApiV1.put(
+      '/planes/:id',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      validarCuerpo(esquemaPlanHosting),
+      deps.planesController.actualizarPlan,
+    );
+    routerApiV1.delete(
+      '/planes/:id',
+      deps.middlewareAutenticacion,
+      requerirSuperadmin,
+      deps.planesController.eliminarPlan,
     );
   }
 
