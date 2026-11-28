@@ -1,6 +1,7 @@
 import {
   AlertaEnviada,
   CanalNotificacion,
+  DestinatarioNotificacion,
   NotificadorCanal,
   RepositorioSeguridadRed,
 } from '../../dominio/interfaces/RepositorioSeguridadRed';
@@ -8,6 +9,7 @@ import {
 export interface EventoNotificable {
   tipoEvento: string;
   mensaje: string;
+  destinatario?: DestinatarioNotificacion;
 }
 
 export type EscuchadorTiempoReal = (alerta: AlertaEnviada) => void;
@@ -70,7 +72,11 @@ export class NotificarEvento {
       const notificador = this.suscriptores.get(config.canal);
       if (!notificador) continue;
 
-      const resultado = await notificador.enviar(config.destino, evento.mensaje);
+      const resultado = await notificador.enviar(
+        config.destino,
+        evento.mensaje,
+        evento.destinatario,
+      );
       if (resultado.enviado) {
         const prefijo = resultado.modo === 'simulado' ? '[Simulado Local] ' : '';
         const alerta = await this.repositorioSeguridadRed.registrarAlertaEnviada({

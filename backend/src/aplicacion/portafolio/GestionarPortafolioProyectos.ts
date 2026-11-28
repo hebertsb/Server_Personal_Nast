@@ -14,6 +14,7 @@ import {
 } from '../../dominio/entidades/Portafolio';
 import { ControladorDocker } from '../../dominio/interfaces/ControladorDocker';
 import { RepositorioPortafolio } from '../../dominio/interfaces/RepositorioPortafolio';
+import { RepositorioUsuarios } from '../../dominio/interfaces/RepositorioUsuarios';
 import { NotificarEvento } from '../notificaciones/NotificarEvento';
 
 function inferirTipoComponente(nombreContenedor: string): TipoComponentePortafolio {
@@ -50,6 +51,7 @@ export class GestionarPortafolioProyectos {
     private readonly repo: RepositorioPortafolio,
     private readonly docker: ControladorDocker,
     private readonly notificarEvento?: NotificarEvento,
+    private readonly repoUsuarios?: RepositorioUsuarios,
   ) {}
 
   public async obtenerResumenCompleto(): Promise<ResumenPortafolioGlobal> {
@@ -404,9 +406,28 @@ export class GestionarPortafolioProyectos {
       actualizadoPor: reportadoPor,
     });
 
+    let destinatario:
+      | { nombre: string; telegramChatId?: string; whatsappNumero?: string }
+      | undefined;
+
+    const encargadoLimpio = datos.encargado.trim();
+    if (encargadoLimpio && this.repoUsuarios) {
+      const usuarioDestino = await this.repoUsuarios
+        .buscarPorNombreUsuario(encargadoLimpio)
+        .catch(() => null);
+      if (usuarioDestino) {
+        destinatario = {
+          nombre: usuarioDestino.nombreUsuario,
+          telegramChatId: usuarioDestino.telegramChatId || undefined,
+          whatsappNumero: usuarioDestino.whatsappNumero || undefined,
+        };
+      }
+    }
+
     await this.notificarEvento?.emitir({
       tipoEvento: 'portafolio_actualizacion',
-      mensaje: `🚨 [TICKET] Proyecto "${proy?.nombre ?? datos.proyectoId}"\nServicio con problema: ${datos.servicio}\nEncargado: ${datos.encargado || 'Sin asignar'}\nReportado por: ${reportadoPor}${datos.detalle ? `\nDetalle: ${datos.detalle}` : ''}`,
+      mensaje: `🚨 [TICKET] Proyecto "${proy?.nombre ?? datos.proyectoId}"\nServicio con problema: ${datos.servicio}\nEncargado: ${encargadoLimpio || 'Sin asignar'}\nReportado por: ${reportadoPor}${datos.detalle ? `\nDetalle: ${datos.detalle}` : ''}`,
+      destinatario,
     });
 
     return tarea;

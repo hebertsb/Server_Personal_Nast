@@ -1,4 +1,7 @@
-import { NotificadorCanal } from '../../dominio/interfaces/RepositorioSeguridadRed';
+import {
+  DestinatarioNotificacion,
+  NotificadorCanal,
+} from '../../dominio/interfaces/RepositorioSeguridadRed';
 
 /**
  * Suscriptor Observer para notificaciones vía Telegram (RF-20).
@@ -16,6 +19,7 @@ export class NotificadorTelegram implements NotificadorCanal {
   public async enviar(
     destino: string,
     mensaje: string,
+    destinatario?: DestinatarioNotificacion,
   ): Promise<{ enviado: boolean; modo: 'real' | 'simulado'; detalle?: string }> {
     const tokenLimpio = this.tokenBot.trim();
     const esTokenSimulado =
@@ -26,7 +30,8 @@ export class NotificadorTelegram implements NotificadorCanal {
     }
 
     const chatId =
-      destino && destino !== 'chat_local_simulado' ? destino : this.chatIdPorDefecto;
+      destinatario?.telegramChatId?.trim() ||
+      (destino && destino !== 'chat_local_simulado' ? destino : this.chatIdPorDefecto);
 
     try {
       const respuesta = await fetch(

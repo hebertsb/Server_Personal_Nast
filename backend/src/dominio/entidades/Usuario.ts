@@ -49,6 +49,8 @@ export interface PropiedadesUsuario {
   ultimoAccesoEn?: Date | null;
   ultimaIpAcceso?: string | null;
   versionSesion?: number;
+  telegramChatId?: string;
+  whatsappNumero?: string;
 }
 
 export interface PerfilUsuarioPublico {
@@ -61,6 +63,8 @@ export interface PerfilUsuarioPublico {
   permisosModulos: ModuloSistema[];
   ultimoAccesoEn: Date | null;
   ultimaIpAcceso: string | null;
+  telegramChatId: string;
+  whatsappNumero: string;
 }
 
 /**
@@ -80,6 +84,8 @@ export class Usuario {
   public readonly ultimoAccesoEn: Date | null;
   public readonly ultimaIpAcceso: string | null;
   public readonly versionSesion: number;
+  public readonly telegramChatId: string;
+  public readonly whatsappNumero: string;
 
   constructor(props: PropiedadesUsuario) {
     this.id = props.id;
@@ -97,6 +103,8 @@ export class Usuario {
     this.ultimoAccesoEn = props.ultimoAccesoEn ?? null;
     this.ultimaIpAcceso = props.ultimaIpAcceso ?? null;
     this.versionSesion = props.versionSesion ?? 1;
+    this.telegramChatId = props.telegramChatId ?? '';
+    this.whatsappNumero = props.whatsappNumero ?? '';
   }
 
   /** Indica si el usuario puede acceder a un módulo específico. */
@@ -118,6 +126,8 @@ export class Usuario {
         this.rol === 'superadmin' ? [...MODULOS_SISTEMA] : [...this.permisosModulos],
       ultimoAccesoEn: this.ultimoAccesoEn,
       ultimaIpAcceso: this.ultimaIpAcceso,
+      telegramChatId: this.telegramChatId,
+      whatsappNumero: this.whatsappNumero,
     };
   }
 }

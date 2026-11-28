@@ -28,6 +28,8 @@ export interface UsuarioAutenticado {
   permisosModulos?: ModuloSistema[];
   ultimoAccesoEn?: string | null;
   ultimaIpAcceso?: string | null;
+  telegramChatId?: string;
+  whatsappNumero?: string;
 }
 
 export interface CredencialesLogin {

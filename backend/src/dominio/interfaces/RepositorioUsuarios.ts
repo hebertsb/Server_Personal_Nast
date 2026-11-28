@@ -47,4 +47,8 @@ export interface RepositorioUsuarios {
   revocarInvitacion?(id: string): Promise<boolean>;
   obtenerPreferencia?(clave: string): Promise<Record<string, unknown> | null>;
   guardarPreferencia?(clave: string, valor: Record<string, unknown>): Promise<void>;
+  actualizarContacto?(
+    id: string,
+    contacto: { telegramChatId: string; whatsappNumero: string },
+  ): Promise<Usuario | null>;
 }

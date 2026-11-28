@@ -242,6 +242,7 @@ async function iniciarServidor(): Promise<void> {
     repositorioPortafolio,
     colectorDocker,
     notificarEvento,
+    repositorioUsuarios,
   );
   const casoUsoProyectosDespliegue = new GestionarProyectosDespliegue(
     clienteGithub,

@@ -27,6 +27,8 @@ interface FilaUsuario {
   ultimo_acceso_en: Date | null;
   ultima_ip_acceso: string | null;
   version_sesion: number;
+  telegram_chat_id?: string | null;
+  whatsapp_numero?: string | null;
 }
 
 interface FilaInvitacion {
@@ -71,6 +73,8 @@ function mapearFilaAUsuario(fila: FilaUsuario): Usuario {
     ultimoAccesoEn: fila.ultimo_acceso_en ? new Date(fila.ultimo_acceso_en) : null,
     ultimaIpAcceso: fila.ultima_ip_acceso ?? null,
     versionSesion: Number(fila.version_sesion ?? 1),
+    telegramChatId: fila.telegram_chat_id ?? '',
+    whatsappNumero: fila.whatsapp_numero ?? '',
   });
 }
 
@@ -92,7 +96,8 @@ function mapearFilaAInvitacion(fila: FilaInvitacion): InvitacionUsuario {
 }
 
 const COLUMNAS_USUARIO = `id, nombre_usuario, hash_contrasena, rol, secreto_totp, totp_habilitado,
-  creado_en, activo, permisos_modulos, ultimo_acceso_en, ultima_ip_acceso, version_sesion`;
+  creado_en, activo, permisos_modulos, ultimo_acceso_en, ultima_ip_acceso, version_sesion,
+  telegram_chat_id, whatsapp_numero`;
 
 /** Implementación PostgreSQL de RepositorioUsuarios usando exclusivamente queries parametrizadas. */
 export class RepositorioUsuariosPostgres implements RepositorioUsuarios {
@@ -301,5 +306,21 @@ export class RepositorioUsuariosPostgres implements RepositorioUsuarios {
        DO UPDATE SET valor = EXCLUDED.valor, actualizado_en = NOW()`,
       [clave, JSON.stringify(valor)],
     );
+  }
+
+  public async actualizarContacto(
+    id: string,
+    contacto: { telegramChatId: string; whatsappNumero: string },
+  ): Promise<Usuario | null> {
+    const resultado = await this.pool.query<FilaUsuario>(
+      `UPDATE usuarios
+       SET telegram_chat_id = $2,
+           whatsapp_numero = $3
+       WHERE id = $1
+       RETURNING ${COLUMNAS_USUARIO}`,
+      [id, contacto.telegramChatId.trim(), contacto.whatsappNumero.trim()],
+    );
+    if (resultado.rows.length === 0) return null;
+    return mapearFilaAUsuario(resultado.rows[0]);
   }
 }

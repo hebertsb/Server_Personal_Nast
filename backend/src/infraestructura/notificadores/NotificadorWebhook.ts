@@ -1,5 +1,8 @@
 import crypto from 'crypto';
-import { NotificadorCanal } from '../../dominio/interfaces/RepositorioSeguridadRed';
+import {
+  DestinatarioNotificacion,
+  NotificadorCanal,
+} from '../../dominio/interfaces/RepositorioSeguridadRed';
 
 /**
  * Suscriptor Observer para notificaciones salientes vía Webhook HTTP/HTTPS
@@ -16,6 +19,7 @@ export class NotificadorWebhook implements NotificadorCanal {
   public async enviar(
     destino: string,
     mensaje: string,
+    destinatario?: DestinatarioNotificacion,
   ): Promise<{ enviado: boolean; modo: 'real' | 'simulado'; detalle?: string }> {
     const candidato =
       destino && destino !== 'chat_local_simulado' && destino.trim().length > 0
@@ -41,6 +45,13 @@ export class NotificadorWebhook implements NotificadorCanal {
       origen: 'HomeSOC',
       mensaje,
       textoFormateado: `🛡️ [HomeSOC] ${mensaje}`,
+      destinatario: destinatario
+        ? {
+            nombre: destinatario.nombre,
+            telegramChatId: destinatario.telegramChatId || null,
+            whatsappNumero: destinatario.whatsappNumero || null,
+          }
+        : null,
       timestamp: new Date().toISOString(),
     });
 

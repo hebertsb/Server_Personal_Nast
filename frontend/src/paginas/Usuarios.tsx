@@ -64,6 +64,9 @@ export default function Usuarios() {
   const [editandoUsuarioId, setEditandoUsuarioId] = useState<string | null>(null);
   const [rolEdit, setRolEdit] = useState<RolUsuario>('colaborador');
   const [modulosEdit, setModulosEdit] = useState<ModuloSistema[]>([]);
+  const [editandoContactoId, setEditandoContactoId] = useState<string | null>(null);
+  const [telegramEdit, setTelegramEdit] = useState('');
+  const [whatsappEdit, setWhatsappEdit] = useState('');
 
   const cargarTodo = useCallback(async () => {
     if (!tokenAcceso) return;
@@ -184,6 +187,29 @@ export default function Usuarios() {
       setMensaje(res.mensaje);
     } catch (e) {
       setError(e instanceof ErrorApi ? e.message : 'No se pudieron revocar las sesiones');
+    }
+  };
+
+  const abrirEditorContacto = (u: UsuarioAutenticado) => {
+    setEditandoContactoId(u.id);
+    setTelegramEdit(u.telegramChatId ?? '');
+    setWhatsappEdit(u.whatsappNumero ?? '');
+  };
+
+  const guardarContacto = async (usuarioId: string) => {
+    if (!tokenAcceso) return;
+    setError(null);
+    try {
+      await usuariosServicio.actualizarContacto(
+        usuarioId,
+        { telegramChatId: telegramEdit.trim(), whatsappNumero: whatsappEdit.trim() },
+        tokenAcceso,
+      );
+      setEditandoContactoId(null);
+      setMensaje('Contacto de alertas (Telegram / WhatsApp) guardado correctamente');
+      await cargarTodo();
+    } catch (e) {
+      setError(e instanceof ErrorApi ? e.message : 'No se pudo guardar el contacto');
     }
   };
 
@@ -457,6 +483,17 @@ export default function Usuarios() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          editandoContactoId === u.id
+                            ? setEditandoContactoId(null)
+                            : abrirEditorContacto(u)
+                        }
+                        className="px-2.5 py-1.5 rounded-lg bg-surface-card border border-border-hairline text-xs font-medium text-primary hover:border-primary/40 cursor-pointer"
+                      >
+                        {editandoContactoId === u.id ? 'Cerrar contacto' : 'Telegram / WhatsApp'}
+                      </button>
                       {!esYo && (
                         <>
                           <button
@@ -495,6 +532,48 @@ export default function Usuarios() {
                       )}
                     </div>
                   </div>
+
+                  {/* Contacto actual (Telegram / WhatsApp) */}
+                  {editandoContactoId === u.id ? (
+                    <div className="pt-3 border-t border-border-hairline flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={telegramEdit}
+                        onChange={(e) => setTelegramEdit(e.target.value)}
+                        placeholder="Telegram Chat ID (ej. 1463499995)"
+                        className="flex-1 rounded-lg bg-surface-card border border-border-hairline px-3 py-1.5 text-xs font-mono text-text-primary"
+                      />
+                      <input
+                        type="text"
+                        value={whatsappEdit}
+                        onChange={(e) => setWhatsappEdit(e.target.value)}
+                        placeholder="WhatsApp (ej. 5917XXXXXXX)"
+                        className="flex-1 rounded-lg bg-surface-card border border-border-hairline px-3 py-1.5 text-xs font-mono text-text-primary"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void guardarContacto(u.id)}
+                        className="px-3.5 py-1.5 rounded-lg bg-primary text-[var(--hs-on-accent)] text-xs font-semibold cursor-pointer"
+                      >
+                        Guardar contacto
+                      </button>
+                    </div>
+                  ) : (
+                    (u.telegramChatId || u.whatsappNumero) && (
+                      <div className="flex flex-wrap gap-2 text-[11px] font-mono text-text-muted">
+                        {u.telegramChatId && (
+                          <span className="px-2 py-0.5 rounded bg-primary/10 text-primary">
+                            Telegram ID: {u.telegramChatId}
+                          </span>
+                        )}
+                        {u.whatsappNumero && (
+                          <span className="px-2 py-0.5 rounded bg-primary/10 text-primary">
+                            WhatsApp: {u.whatsappNumero}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  )}
 
                   {/* Chips de módulos visibles */}
                   {!enEdicion && (

@@ -501,4 +501,61 @@ export class GestionarAccesoYUsuarios {
     });
     return valor;
   }
+
+  public async listarDirectorioContacto(): Promise<
+    Array<{
+      id: string;
+      nombreUsuario: string;
+      rol: RolUsuario;
+      telegramChatId: string;
+      whatsappNumero: string;
+    }>
+  > {
+    if (!this.repositorioUsuarios.listarTodos) return [];
+    const usuarios = await this.repositorioUsuarios.listarTodos();
+    return usuarios
+      .filter((u) => u.activo)
+      .map((u) => ({
+        id: u.id,
+        nombreUsuario: u.nombreUsuario,
+        rol: u.rol,
+        telegramChatId: u.telegramChatId,
+        whatsappNumero: u.whatsappNumero,
+      }));
+  }
+
+  public async actualizarContactoUsuario(entrada: {
+    usuarioId: string;
+    telegramChatId: string;
+    whatsappNumero: string;
+    actorId: string;
+    actorRol: RolUsuario;
+    direccionIp: string;
+  }): Promise<PerfilUsuarioPublico> {
+    if (entrada.actorRol !== 'superadmin' && entrada.actorId !== entrada.usuarioId) {
+      throw new ErrorPermisoDenegado('Solo el superadmin o el propio usuario puede editar el contacto');
+    }
+    if (!this.repositorioUsuarios.actualizarContacto) {
+      throw new ErrorDominio('NO_SOPORTADO', 'No se pudo actualizar el contacto', 500);
+    }
+    const actualizado = await this.repositorioUsuarios.actualizarContacto(entrada.usuarioId, {
+      telegramChatId: entrada.telegramChatId,
+      whatsappNumero: entrada.whatsappNumero,
+    });
+    if (!actualizado) {
+      throw new ErrorDominio('USUARIO_NO_ENCONTRADO', 'Usuario no encontrado', 404);
+    }
+    await this.repositorioAuditoria.registrar({
+      usuarioId: entrada.actorId,
+      accion: 'actualizar_contacto_usuario',
+      recurso: `usuario:${actualizado.nombreUsuario}`,
+      origen: 'web',
+      direccionIp: entrada.direccionIp,
+      detalles: {
+        tieneTelegram: Boolean(actualizado.telegramChatId),
+        tieneWhatsapp: Boolean(actualizado.whatsappNumero),
+      },
+    });
+    return actualizado.aPerfilPublico();
+  }
 }

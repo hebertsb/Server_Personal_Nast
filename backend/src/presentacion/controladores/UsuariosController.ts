@@ -34,6 +34,21 @@ export const esquemaConfigEditor = z.object({
   rutaBase: z.string().trim().min(1).max(200).default('/home/coder/project'),
 });
 
+export const esquemaContactoUsuario = z.object({
+  telegramChatId: z
+    .string()
+    .trim()
+    .max(64)
+    .regex(/^[0-9-]*$/, 'El Chat ID de Telegram solo debe contener números (o guión para grupos)')
+    .default(''),
+  whatsappNumero: z
+    .string()
+    .trim()
+    .max(32)
+    .regex(/^[0-9+ ]*$/, 'El número de WhatsApp solo debe contener dígitos y opcionalmente +')
+    .default(''),
+});
+
 /** Controlador HTTP para la gestión de usuarios, roles, permisos e invitaciones (Superadmin). */
 export class UsuariosController {
   constructor(private readonly casoUso: GestionarAccesoYUsuarios) {}
@@ -224,6 +239,48 @@ export class UsuariosController {
         direccionIp,
       });
       res.status(200).json({ editor });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public listarDirectorio = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const directorio = await this.casoUso.listarDirectorioContacto();
+      res.status(200).json({ directorio });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public actualizarContacto = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const actor = req.usuarioAutenticado;
+      if (!actor) throw new ErrorTokenInvalido();
+      const validacion = esquemaParametroUuid.safeParse(req.params);
+      if (!validacion.success) {
+        res.status(400).json({ error: { codigo: 'VALIDACION_FALLIDA', mensaje: 'ID inválido' } });
+        return;
+      }
+      const datos = req.body as z.infer<typeof esquemaContactoUsuario>;
+      const direccionIp = req.ip || req.socket.remoteAddress || 'desconocida';
+      const usuario = await this.casoUso.actualizarContactoUsuario({
+        usuarioId: validacion.data.id,
+        telegramChatId: datos.telegramChatId,
+        whatsappNumero: datos.whatsappNumero,
+        actorId: actor.sub,
+        actorRol: actor.rol,
+        direccionIp,
+      });
+      res.status(200).json({ usuario });
     } catch (error) {
       next(error);
     }

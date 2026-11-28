@@ -24,11 +24,18 @@ export interface AlertaEnviada {
   enviadoEn: string;
 }
 
+export interface DestinatarioNotificacion {
+  nombre: string;
+  telegramChatId?: string;
+  whatsappNumero?: string;
+}
+
 export interface NotificadorCanal {
   readonly canal: CanalNotificacion;
   enviar(
     destino: string,
     mensaje: string,
+    destinatario?: DestinatarioNotificacion,
   ): Promise<{ enviado: boolean; modo: 'real' | 'simulado'; detalle?: string }>;
 }
 

@@ -90,4 +90,27 @@ export const usuariosServicio = {
       datos,
       tokenAcceso,
     ),
+
+  listarDirectorio: (
+    tokenAcceso: string,
+  ): Promise<{
+    directorio: Array<{
+      id: string;
+      nombreUsuario: string;
+      rol: RolUsuario;
+      telegramChatId: string;
+      whatsappNumero: string;
+    }>;
+  }> => apiCliente.get('/usuarios/directorio', tokenAcceso),
+
+  actualizarContacto: (
+    id: string,
+    datos: { telegramChatId: string; whatsappNumero: string },
+    tokenAcceso: string,
+  ): Promise<{ usuario: UsuarioAutenticado }> =>
+    apiCliente.patch<{ usuario: UsuarioAutenticado }>(
+      `/usuarios/${encodeURIComponent(id)}/contacto`,
+      datos,
+      tokenAcceso,
+    ),
 };

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usarAutenticacion } from '../../contexto/ContextoAutenticacion';
 import { ErrorApi } from '../../servicios/apiCliente';
+import { usuariosServicio } from '../../servicios/usuariosServicio';
 import {
   EstadoComponentePortafolio,
   EstadoProyectoPortafolio,
@@ -84,6 +85,15 @@ export default function PanelPortafolioProyectos() {
     detalle: string;
   } | null>(null);
   const [enviandoTicket, setEnviandoTicket] = useState(false);
+  const [directorioUsuarios, setDirectorioUsuarios] = useState<
+    Array<{
+      id: string;
+      nombreUsuario: string;
+      rol: string;
+      telegramChatId: string;
+      whatsappNumero: string;
+    }>
+  >([]);
 
   const puedeEditar =
     usuario?.rol === 'superadmin' ||
@@ -94,8 +104,12 @@ export default function PanelPortafolioProyectos() {
     if (!tokenAcceso) return;
     setCargando(true);
     try {
-      const data = await portafolioServicio.obtenerResumen(tokenAcceso);
+      const [data, resDir] = await Promise.all([
+        portafolioServicio.obtenerResumen(tokenAcceso),
+        usuariosServicio.listarDirectorio(tokenAcceso).catch(() => ({ directorio: [] })),
+      ]);
       setResumen(data);
+      setDirectorioUsuarios(resDir.directorio ?? []);
       setError(null);
     } catch (err) {
       setError(err instanceof ErrorApi ? err.message : 'No se pudo cargar el portafolio');
@@ -792,10 +806,40 @@ export default function PanelPortafolioProyectos() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-text-primary">
                   Encargado del área / responsable
                 </label>
+                {directorioUsuarios.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {directorioUsuarios.map((u) => {
+                      const seleccionado =
+                        modalTicket.encargado.toLowerCase() === u.nombreUsuario.toLowerCase();
+                      const tieneContacto = Boolean(u.telegramChatId || u.whatsappNumero);
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() =>
+                            setModalTicket((prev) =>
+                              prev ? { ...prev, encargado: u.nombreUsuario } : null,
+                            )
+                          }
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-medium cursor-pointer ${
+                            seleccionado
+                              ? 'bg-primary/15 border-primary text-primary'
+                              : 'bg-surface-low border-border-hairline text-text-muted hover:text-text-primary'
+                          }`}
+                        >
+                          <span>{u.nombreUsuario}</span>
+                          {tieneContacto && (
+                            <span className="text-[10px] font-mono text-primary">• directo</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 <input
                   type="text"
                   autoFocus
@@ -803,7 +847,7 @@ export default function PanelPortafolioProyectos() {
                   onChange={(e) =>
                     setModalTicket((prev) => (prev ? { ...prev, encargado: e.target.value } : null))
                   }
-                  placeholder="Ej. Hebert, @colaborador, Backend"
+                  placeholder="Ej. Hebert, Juan, Backend"
                   className="rounded-xl bg-surface-low border border-border-hairline px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-primary"
                 />
               </div>
